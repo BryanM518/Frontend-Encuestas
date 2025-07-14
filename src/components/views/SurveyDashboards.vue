@@ -2,40 +2,42 @@
   <div class="survey-dashboard">
     <h1 class="dashboard-title">Gestión de Encuestas</h1>
 
-    <!-- Editor (crear o editar encuesta) -->
     <SurveyEditor :survey-to-edit="surveyToEdit" @saved="handleSurveySaved" />
 
-    <!-- Lista de encuestas -->
     <SurveyList @edit="setSurveyToEdit" ref="surveyListRef" />
   </div>
 </template>
 
-<script>
+<script lang="ts">
+import { defineComponent } from 'vue';
 import SurveyEditor from '../../components/Surveys/SurveyEditor.vue';
 import SurveyList from '../../components/Surveys/SurveyList.vue';
+import { useSurveyDashboard } from '../../scripts/views/SurveyDashboards';
 
-export default {
+export default defineComponent({
   name: 'SurveyDashboard',
   components: {
     SurveyEditor,
-    SurveyList
+    SurveyList,
   },
-  data() {
+  setup() {
+    // Destructure the reactive variables and methods from the composable
+    const {
+      surveyToEdit,
+      surveyListRef, // The ref to the SurveyList component
+      setSurveyToEdit,
+      handleSurveySaved,
+    } = useSurveyDashboard();
+
+    // Return them to make them accessible in the template
     return {
-      surveyToEdit: null
+      surveyToEdit,
+      surveyListRef,
+      setSurveyToEdit,
+      handleSurveySaved,
     };
   },
-  methods: {
-    setSurveyToEdit(survey) {
-      this.surveyToEdit = survey;
-      window.scrollTo({ top: 0, behavior: 'smooth' }); // opcional: subir al editor
-    },
-    handleSurveySaved(savedSurvey) {
-      this.surveyToEdit = null;
-      this.$refs.surveyListRef.loadSurveys(); // recarga la lista desde el hijo
-    }
-  }
-};
+});
 </script>
 
 <style scoped>

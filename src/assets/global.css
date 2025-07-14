@@ -105,7 +105,6 @@ main {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  max-width: 1200px;
   margin: 0 auto;
 }
 
@@ -344,8 +343,6 @@ main {
   margin-right: 10px;
   filter: brightness(0) invert(1);
 }
-
-/* Agregar esto al final de tu global.css existente */
 
 /* Estilos para el diseño en zigzag */
 .feature-zigzag {

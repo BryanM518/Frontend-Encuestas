@@ -47,121 +47,45 @@
   </div>
 </template>
 
-<script>
-import axios from 'axios';
+<script lang="ts">
+import { defineComponent, toRefs } from 'vue';
+import { useSurveyEditor } from '../../scripts/Surveys/SurveyEditor';
 
-export default {
+export default defineComponent({
   name: 'SurveyEditor',
   props: {
     surveyToEdit: {
       type: Object,
-      default: null
-    }
+      default: null,
+    },
   },
-  data() {
+  setup(props, { emit }) {
+    // Convert props to refs so they can be watched inside the composable
+    const { surveyToEdit } = toRefs(props);
+
+    const {
+      form,
+      message,
+      success,
+      isEditing,
+      addQuestion,
+      removeQuestion,
+      addOption,
+      removeOption,
+      handleSubmit,
+    } = useSurveyEditor(surveyToEdit, emit);
+
     return {
-      form: this.resetForm(),
-      message: '',
-      success: false,
-      backendUrl: 'http://127.0.0.1:8000/api/v1/surveys/',
-      token: localStorage.getItem('token')
+      form,
+      message,
+      success,
+      isEditing,
+      addQuestion,
+      removeQuestion,
+      addOption,
+      removeOption,
+      handleSubmit,
     };
   },
-  computed: {
-    isEditing() {
-      return !!this.form._id;
-    }
-  },
-  watch: {
-    surveyToEdit: {
-      immediate: true,
-      handler(newVal) {
-        this.form = newVal ? JSON.parse(JSON.stringify(newVal)) : this.resetForm();
-      }
-    }
-  },
-  methods: {
-    resetForm() {
-      return {
-        _id: null,
-        title: '',
-        description: '',
-        questions: [],
-        status: 'created'
-      };
-    },
-    getAuthHeaders() {
-      return {
-        headers: {
-          Authorization: `Bearer ${this.token}`
-        }
-      };
-    },
-    addQuestion() {
-      const tempId = 'temp_' + Date.now() + Math.random().toString(36).substring(2, 10);
-      this.form.questions.push({
-        _id: tempId,
-        type: 'text_input',
-        text: '',
-        options: [],
-        is_required: false
-      });
-    },
-    removeQuestion(index) {
-      this.form.questions.splice(index, 1);
-    },
-    addOption(qIndex) {
-      if (!this.form.questions[qIndex].options) {
-        this.form.questions[qIndex].options = [];
-      }
-      this.form.questions[qIndex].options.push('');
-    },
-    removeOption(qIndex, oIndex) {
-      this.form.questions[qIndex].options.splice(oIndex, 1);
-    },
-    async handleSubmit() {
-      this.message = '';
-      this.success = false;
-
-      if (!this.token) {
-        this.message = 'Debes iniciar sesión para guardar encuestas.';
-        return;
-      }
-
-      const payload = JSON.parse(JSON.stringify(this.form));
-
-      if ('_id' in payload) delete payload._id;
-
-      payload.questions.forEach(q => {
-        if (typeof q._id === 'string' && q._id.startsWith('temp_')) {
-          delete q._id;
-        }
-        if (q.type !== 'multiple_choice' && q.type !== 'checkbox_group' && q.options) {
-          delete q.options;
-        } else if ((q.type === 'multiple_choice' || q.type === 'checkbox_group') && (!q.options || q.options.length === 0)) {
-          q.options = [];
-        }
-      });
-
-      try {
-        let response;
-        if (this.isEditing) {
-          response = await axios.put(`${this.backendUrl}${this.form._id}`, payload, this.getAuthHeaders());
-          this.message = 'Encuesta actualizada correctamente.';
-        } else {
-          response = await axios.post(this.backendUrl, payload, this.getAuthHeaders());
-          this.message = 'Encuesta creada correctamente.';
-        }
-
-        this.success = true;
-        this.form = this.resetForm();
-        this.$emit('saved', response.data); // Notifica al componente padre
-      } catch (err) {
-        console.error('Error al guardar encuesta:', err);
-        this.message = err.response?.data?.detail || 'Error al guardar la encuesta.';
-        this.success = false;
-      }
-    }
-  }
-};
+});
 </script>

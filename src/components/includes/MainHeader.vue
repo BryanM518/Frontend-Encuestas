@@ -6,10 +6,8 @@
         <span>ST&T Encuestas</span>
       </router-link>
 
-      <!-- Botón hamburguesa solo en móvil -->
       <button class="hamburger" @click="toggleMobileMenu">☰</button>
 
-      <!-- Menú de navegación -->
       <nav class="main-nav" :class="{ open: mobileMenuOpen }">
         <ul>
           <li><router-link to="/surveytest">Encuestas</router-link></li>
@@ -42,34 +40,21 @@
 </template>
 
 <script lang="ts">
-import { defineComponent, computed, ref } from 'vue';
-import { useRouter } from 'vue-router';
-import { useAuthStore } from '../../stores/auth';
+import { defineComponent } from 'vue';
+import { useMainHeader } from '../../scripts/includes/MainHeader'; // Adjust the import path as needed
 
 export default defineComponent({
   name: 'MainHeader',
   setup() {
-    const router = useRouter();
-    const authStore = useAuthStore();
-    const showMenu = ref(false);
-    const mobileMenuOpen = ref(false);
-
-    const isAuthenticated = computed(() => authStore.isAuthenticated);
-    const hasAlerts = computed(() => true); // Puedes conectar alertas reales
-
-    const toggleMenu = () => {
-      showMenu.value = !showMenu.value;
-    };
-
-    const toggleMobileMenu = () => {
-      mobileMenuOpen.value = !mobileMenuOpen.value;
-      showMenu.value = false; // Cierra el dropdown si se abre el mobile menu
-    };
-
-    const handleLogout = async () => {
-      authStore.logout();
-      await router.push('/login');
-    };
+    const {
+      isAuthenticated,
+      hasAlerts,
+      handleLogout,
+      showMenu,
+      toggleMenu,
+      mobileMenuOpen,
+      toggleMobileMenu,
+    } = useMainHeader();
 
     return {
       isAuthenticated,
@@ -78,8 +63,8 @@ export default defineComponent({
       showMenu,
       toggleMenu,
       mobileMenuOpen,
-      toggleMobileMenu
+      toggleMobileMenu,
     };
-  }
+  },
 });
 </script>

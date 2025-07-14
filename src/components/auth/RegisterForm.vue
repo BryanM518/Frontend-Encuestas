@@ -35,46 +35,11 @@
   </div>
 </template>
 
-<script>
-import axios from "axios";
+<script lang="ts">
+import { defineComponent } from 'vue';
+import RegisterFormLogic from '../../scripts/auth/RegisterForm';
 
-export default {
-  name: "RegisterForm",
-  data() {
-    return {
-      username: "",
-      email: "",
-      password: "",
-      confirmPassword: "",
-      errorMessage: "",
-      successMessage: ""
-    };
-  },
-  methods: {
-    async handleRegister() {
-      if (this.password !== this.confirmPassword) {
-        this.errorMessage = "Las contraseñas no coinciden";
-        return;
-      }
-
-      try {
-        await axios.post("http://localhost:8000/api/v1/auth/register", {
-          username: this.username,
-          email: this.email,
-          password: this.password
-        });
-
-        this.successMessage = "Registro exitoso. Ahora puedes iniciar sesión.";
-        this.errorMessage = "";
-        this.username = "";
-        this.email = "";
-        this.password = "";
-        this.confirmPassword = "";
-      } catch (error) {
-        this.errorMessage = error.response?.data?.detail || "Error al registrar usuario";
-        this.successMessage = "";
-      }
-    }
-  }
-};
+export default defineComponent({
+  ...RegisterFormLogic
+});
 </script>

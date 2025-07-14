@@ -1,8 +1,8 @@
 import { createRouter, createWebHistory, RouteRecordRaw } from 'vue-router'
 
 // Importa tus componentes
-import LoginForm from '../components/auth/Login_Form.vue'
-import RegisterForm from '../components/auth/Register_Form.vue'
+import LoginForm from '../components/auth/LoginForm.vue'
+import RegisterForm from '../components/auth/RegisterForm.vue'
 import SurveyEditor from '../components/Surveys/SurveyEditor.vue'
 import SurveyList from '../components/Surveys/SurveyList.vue'
 import SurveyDashboards from '../components/views/SurveyDashboards.vue'

@@ -1,9 +1,8 @@
 <template>
   <div class="survey-list">
-
     <div class="btn-survey-actions">
-        <h2>Mis Encuestas</h2>
-        <button @click="loadSurveys">Recargar Encuestas</button>
+      <h2>Mis Encuestas</h2>
+      <button @click="loadSurveys">Recargar Encuestas</button>
     </div>
     <p v-if="loading">Cargando encuestas...</p>
     <p v-if="error" class="error">{{ error }}</p>
@@ -34,62 +33,28 @@
   </div>
 </template>
 
-<script>
-import axios from 'axios';
+<script lang="ts">
+import { defineComponent } from 'vue';
+import { useSurveyList } from '../../scripts/Surveys/SurveyList';
 
-export default {
+export default defineComponent({
   name: 'SurveyList',
-  data() {
+  setup() {
+    const {
+      surveys,
+      loading,
+      error,
+      loadSurveys,
+      deleteSurvey,
+    } = useSurveyList();
+
     return {
-      backendUrl: 'http://127.0.0.1:8000/api/v1/surveys/',
-      token: localStorage.getItem('token'),
-      surveys: [],
-      loading: false,
-      error: null
+      surveys,
+      loading,
+      error,
+      loadSurveys,
+      deleteSurvey,
     };
   },
-  methods: {
-    getAuthHeaders() {
-      return {
-        headers: {
-          Authorization: `Bearer ${this.token}`
-        }
-      };
-    },
-    async loadSurveys() {
-      this.loading = true;
-      this.error = null;
-
-      if (!this.token) {
-        this.error = 'Debes iniciar sesión para ver tus encuestas.';
-        this.loading = false;
-        return;
-      }
-
-      try {
-        const response = await axios.get(this.backendUrl, this.getAuthHeaders());
-        this.surveys = response.data;
-      } catch (err) {
-        console.error('Error al cargar encuestas:', err);
-        this.error = 'No se pudieron cargar las encuestas.';
-      } finally {
-        this.loading = false;
-      }
-    },
-    async deleteSurvey(id) {
-      if (!confirm('¿Seguro que deseas eliminar esta encuesta?')) return;
-
-      try {
-        await axios.delete(`${this.backendUrl}${id}`, this.getAuthHeaders());
-        this.surveys = this.surveys.filter(s => s._id !== id);
-      } catch (err) {
-        console.error('Error al eliminar encuesta:', err);
-        this.error = 'No se pudo eliminar la encuesta.';
-      }
-    }
-  },
-  mounted() {
-    this.loadSurveys();
-  }
-};
+});
 </script>

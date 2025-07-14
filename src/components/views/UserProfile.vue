@@ -14,54 +14,30 @@
   </div>
 </template>
 
-<script>
-import axios from 'axios';
+<script lang="ts">
+import { defineComponent } from 'vue';
+import { useUserProfile } from '../../scripts/views/UserProfile'; // Adjust the import path as needed
 
-export default {
+export default defineComponent({
   name: 'UserProfile',
-  data() {
+  setup() {
+    // Destructure the reactive variables and methods returned by the composable
+    const {
+      user,
+      loading,
+      error,
+      formatDate,
+      fetchUserProfile // If you need to expose a method to refetch
+    } = useUserProfile();
+
+    // Return them to make them accessible in the template
     return {
-      user: null,
-      loading: true,
-      error: null,
-      token: localStorage.getItem('token'),
-      endpoint: 'http://localhost:8000/api/v1/auth/me'
+      user,
+      loading,
+      error,
+      formatDate,
+      fetchUserProfile
     };
   },
-  methods: {
-    async fetchUserProfile() {
-      if (!this.token) {
-        this.error = 'No has iniciado sesión.';
-        this.loading = false;
-        return;
-      }
-
-      try {
-        const response = await axios.get(this.endpoint, {
-          headers: {
-            Authorization: `Bearer ${this.token}`
-          }
-        });
-
-        this.user = response.data;
-      } catch (err) {
-        console.error('Error al obtener perfil:', err);
-        this.error = err.response?.data?.detail || 'Error al obtener los datos del usuario.';
-      } finally {
-        this.loading = false;
-      }
-    },
-    formatDate(isoString) {
-      const date = new Date(isoString);
-      return date.toLocaleDateString('es-ES', {
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric'
-      });
-    }
-  },
-  mounted() {
-    this.fetchUserProfile();
-  }
-};
+});
 </script>
