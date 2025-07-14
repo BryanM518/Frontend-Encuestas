@@ -1,0 +1,841 @@
+/* src/assets/global.css */
+
+/* 1) Paleta de colores */
+:root {
+  --color1: #181419;
+  --color2: #4a073c;
+  --color3: #9e0b41;
+  --color4: #cc3e18;
+  --color5: #f0971c;
+  --text-dark: #333;
+  --text-light: #ecf0f1;
+  --bg-light: #f9f9f9;
+  --bg-white: #ffffff;
+  --shadow: rgba(0, 0, 0, 0.1);
+}
+
+/* 2) Reset y layout */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+html, body {
+  height: 100%;
+  margin: 0;
+}
+body {
+  display: flex;
+  flex-direction: column;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+#app {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  color: var(--text-dark);
+}
+main {
+  flex: 1;
+}
+
+/* 3) Header */
+
+/* Estilo botón hamburguesa */
+.hamburger {
+  display: none;
+  background: none;
+  border: none;
+  font-size: 1.8rem;
+  color: var(--text-light);
+  cursor: pointer;
+}
+
+/* Menú principal */
+.main-nav {
+  display: flex;
+}
+
+@media (max-width: 768px) {
+  .hamburger {
+    display: block;
+  }
+
+  .main-nav {
+    position: absolute;
+    top: 70px;
+    right: 20px;
+    background-color: var(--color2);
+    border-radius: 12px;
+    padding: 20px;
+    display: none;
+    flex-direction: column;
+    box-shadow: 0 8px 20px var(--shadow);
+    z-index: 999;
+  }
+
+  .main-nav.open {
+    display: flex;
+  }
+
+  .main-nav ul {
+    flex-direction: column;
+    gap: 15px;
+  }
+
+  .main-nav li a {
+    font-size: 1.1rem;
+    padding: 10px;
+  }
+}
+
+.app-header {
+  background-color: var(--color2);
+  color: var(--text-light);
+  padding: 16px 40px;
+  box-shadow: 0 2px 8px var(--shadow);
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+}
+
+.header-content {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.logo {
+  display: flex;
+  align-items: center;
+  text-decoration: none;
+  color: var(--text-light);
+  font-size: 1.4em;
+  font-weight: bold;
+  transition: opacity 0.3s ease;
+}
+
+.logo:hover {
+  opacity: 0.8;
+}
+
+.logo-img {
+  height: 42px;
+  margin-right: 15px;
+  filter: brightness(0) invert(1);
+}
+
+.main-nav {
+  margin-left: auto;
+}
+
+.main-nav ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  gap: 30px;
+}
+
+.main-nav li {
+  position: relative;
+}
+
+.main-nav li a {
+  color: var(--text-light);
+  text-decoration: none;
+  font-size: 1.1em;
+  font-weight: 500;
+  padding: 8px 0;
+  transition: color 0.3s ease;
+  position: relative;
+}
+
+.main-nav li a::after {
+  content: '';
+  position: absolute;
+  width: 0%;
+  height: 2px;
+  bottom: -2px;
+  left: 0;
+  background-color: var(--color5);
+  transition: width 0.3s ease;
+}
+
+.main-nav li a:hover::after,
+.main-nav li a.router-link-exact-active::after {
+  width: 100%;
+}
+
+.main-nav li a:hover {
+  color: var(--color5);
+}
+
+.main-nav li a.router-link-exact-active {
+  font-weight: 600;
+  color: var(--color5);
+}
+
+
+
+
+/* 4) Carrusel Home */
+.hero-carousel {
+  position: relative;
+  height: 70vh;
+  min-height: 500px;
+  overflow: hidden;
+}
+
+.carousel-slide {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  transition: opacity 1.2s ease-in-out;
+  background-size: cover;
+  background-position: center;
+}
+
+.carousel-slide.active {
+  opacity: 1;
+}
+
+/* Imágenes del carrusel */
+.carousel-slide.imagen1 { background-image: url('../assets/imagen1.jpg'); }
+.carousel-slide.imagen2 { background-image: url('../assets/imagen2.jpg'); }
+.carousel-slide.imagen3 { background-image: url('../assets/imagen3.jpg'); }
+.carousel-slide.imagen4 { background-image: url('../assets/imagen4.jpg'); }
+.carousel-slide.imagen5 { background-image: url('../assets/imagen5.jpg'); }
+
+.carousel-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(to bottom, rgba(0,4,40,0.6) 0%, rgba(0,0,0,0.3) 100%);
+  z-index: 1;
+}
+
+.hero-content {
+  position: relative;
+  z-index: 2;
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 0 20px;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+  color: var(--text-light);
+}
+
+.hero-content h1 {
+  font-size: 2.8rem;
+  margin-bottom: 1rem;
+  text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+}
+
+.hero-content p {
+  font-size: 1.2rem;
+  margin-bottom: 2rem;
+  max-width: 600px;
+}
+
+/* 5) Features Section */
+.features-section {
+  padding: 80px 20px;
+  /* background-color: transparent; */
+  background-color: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(1px);
+  border-radius: 12px;
+  position: relative;
+}
+
+.features-section h2 {
+  font-size: 2.2rem;
+  margin-bottom: 60px;
+  color: var(--color2);
+  text-align: center;
+}
+
+.features-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 30px;
+  margin: 0 auto;
+}
+
+.feature-item {
+  background-color: var(--bg-light);
+  padding: 30px;
+  border-radius: 12px;
+  box-shadow: 0 5px 15px var(--shadow);
+  transition: transform 0.3s, box-shadow 0.3s;
+}
+
+.feature-item:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+}
+
+.feature-item h3 {
+  color: var(--color3);
+  margin-bottom: 15px;
+  font-size: 1.4rem;
+}
+
+.feature-item p {
+  color: var(--text-dark);
+  line-height: 1.6;
+}
+
+/* 6) Footer */
+.app-footer {
+  background-color: var(--color2); /* Cambiado a tu color2 (#17284b) */
+  color: #ecf0f1;
+  padding: 20px 20px; 
+  box-shadow: 0 -2px 4px rgba(0, 0, 0, 0.1);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+  box-sizing: border-box; 
+}
+
+/* Todos los demás estilos del footer se mantienen EXACTAMENTE igual */
+.footer-section {
+  flex: 1;
+  min-width: 200px;
+}
+
+.footer-section h3 {
+  color: #4CAF50; /* Este se mantiene igual */
+  font-size: 1.2em;
+  margin-bottom: 15px;
+}
+
+.footer-info p {
+  font-size: 0.9em;
+  line-height: 1.5;
+  margin-top: 10px;
+  opacity: 0.8;
+}
+
+.footer-logo {
+  display: flex;
+  align-items: center;
+  text-decoration: none;
+  color: white;
+  font-size: 1.3em;
+  font-weight: bold;
+  justify-content: center;
+}
+
+.logo-img-footer {
+  height: 40px;
+  margin-right: 10px;
+  filter: brightness(0) invert(1);
+}
+
+/* Agregar esto al final de tu global.css existente */
+
+/* Estilos para el diseño en zigzag */
+.feature-zigzag {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 20px;
+}
+
+.feature-row {
+  display: flex;
+  align-items: center;
+  margin-bottom: 60px;
+  gap: 40px;
+}
+
+.reverse {
+  flex-direction: row-reverse;
+}
+
+.feature-card {
+  flex: 1;
+  background-color: var(--bg-white);
+  padding: 30px;
+  border-radius: 12px;
+  box-shadow: 0 5px 15px var(--shadow);
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.feature-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+}
+
+.feature-icon {
+  font-size: 2.5rem;
+  margin-bottom: 15px;
+}
+
+.feature-btn {
+  background-color: var(--color3);
+  color: white;
+  border: none;
+  padding: 12px 25px;
+  border-radius: 30px;
+  cursor: pointer;
+  font-weight: 600;
+  margin-top: 20px;
+  transition: all 0.3s ease;
+}
+
+.feature-btn:hover {
+  background-color: var(--color4);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+}
+
+.feature-visual {
+  flex: 1;
+  text-align: center;
+}
+
+.visual-placeholder {
+  font-size: 5rem;
+  margin-bottom: 15px;
+  opacity: 0.8;
+}
+
+.visual-caption {
+  font-style: italic;
+  color: var(--color2);
+  font-weight: 500;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .feature-row, .feature-row.reverse {
+    flex-direction: column;
+  }
+  
+  .feature-card, .feature-visual {
+    width: 100%;
+  }
+}
+
+@media (max-width: 768px) {
+  .footer-content {
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+  }
+  .footer-section {
+    width: 100%;
+    margin-bottom: 20px;
+  }
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .hero-content h1 {
+    font-size: 2rem;
+  }
+  
+  .main-nav ul {
+    gap: 15px;
+  }
+  
+  .features-section {
+    padding: 50px 20px;
+  }
+}
+
+
+/* 7) Formularios (Login & Register) */
+.auth-form-container {
+  width: 100%;
+  max-width: 500px;
+  margin: 80px auto;
+  background-color: var(--bg-white);
+  padding: 40px;
+  border-radius: 12px;
+  box-shadow: 0 5px 20px var(--shadow);
+}
+
+@media (max-width: 480px) {
+  .auth-form-container {
+    padding: 30px 20px;
+  }
+}
+
+
+.auth-form-container h2 {
+  text-align: center;
+  margin-bottom: 30px;
+  color: var(--color2);
+  font-size: 1.8rem;
+}
+
+.auth-form-group {
+  margin-bottom: 20px;
+}
+
+.auth-form-group label {
+  display: block;
+  margin-bottom: 8px;
+  color: var(--color2);
+  font-weight: 600;
+}
+
+.auth-form-group input {
+  width: 100%;
+  padding: 12px 15px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  font-size: 1rem;
+  transition: border 0.3s ease;
+}
+
+.auth-form-group input:focus {
+  border-color: var(--color4);
+  outline: none;
+}
+
+.auth-submit-button {
+  width: 100%;
+  background-color: var(--color3);
+  color: white;
+  border: none;
+  padding: 14px;
+  border-radius: 8px;
+  font-weight: bold;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+}
+
+.auth-submit-button:hover {
+  background-color: var(--color4);
+}
+
+.auth-error-message {
+  color: red;
+  text-align: center;
+  margin-top: 15px;
+  font-size: 0.95rem;
+}
+
+.auth-success-message {
+  color: green;
+  text-align: center;
+  margin-top: 15px;
+  font-size: 0.95rem;
+}
+
+.dropdown-menu {
+  position: absolute;
+  top: 110%;
+  right: 0;
+  background-color: var(--color2);
+  border-radius: 8px;
+  box-shadow: 0 4px 12px var(--shadow);
+  list-style: none;
+  padding: 10px 0;
+  z-index: 10;
+  min-width: 200px;
+
+  /* Asegura disposición vertical */
+  display: flex;
+  flex-direction: column;
+  gap: 0; /* o añade espacio si quieres separar ítems */
+}
+
+.auth-register-link {
+  text-align: center;
+  margin-top: 20px;
+  font-size: 0.95rem;
+  color: var(--color2);
+}
+
+.auth-register-link a {
+  color: var(--color3);
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.auth-register-link a:hover {
+  text-decoration: underline;
+  color: var(--color4);
+}
+
+body {
+  background-image: url('../assets/background.png');
+  background-size: cover;
+  background-repeat: no-repeat;
+  background-position: center;
+  background-attachment: fixed;
+}
+
+.auth-page-wrapper {
+  flex: 1; /* ocupa el espacio restante entre header y footer */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 40px 20px;
+}
+
+/* ===========================
+   Estilos Globales para Encuesta (Editor)
+   =========================== */
+
+.survey-editor {
+  background-color: var(--bg-white);
+  padding: 30px;
+  margin: 40px auto;
+  max-width: 800px;
+  border-radius: 12px;
+  box-shadow: 0 4px 15px var(--shadow);
+}
+
+.survey-editor h2 {
+  font-size: 1.8rem;
+  margin-bottom: 20px;
+  color: var(--color2);
+  text-align: center;
+}
+
+.survey-editor form {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.survey-editor input[type="text"],
+.survey-editor textarea,
+.survey-editor select {
+  padding: 12px 15px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  font-size: 1rem;
+  width: 100%;
+  transition: border 0.3s ease;
+}
+
+.survey-editor input:focus,
+.survey-editor textarea:focus,
+.survey-editor select:focus {
+  border-color: var(--color4);
+  outline: none;
+}
+
+.survey-editor button {
+  background-color: var(--color3);
+  color: white;
+  border: none;
+  padding: 12px 18px;
+  font-weight: bold;
+  font-size: 1rem;
+  border-radius: 30px;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+  align-self: flex-start;
+}
+
+.survey-editor button:hover {
+  background-color: var(--color4);
+}
+
+.question-card {
+  border: 1px dashed #bbb;
+  background-color: #fffdf7;
+  padding: 20px;
+  border-radius: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.option-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.option-item input {
+  flex: 1;
+}
+
+.survey-editor .success {
+  color: green;
+  font-weight: bold;
+  text-align: center;
+  margin-top: 10px;
+}
+
+.survey-editor .error {
+  color: red;
+  font-weight: bold;
+  text-align: center;
+  margin-top: 10px;
+}
+
+/* Responsive */
+@media (max-width: 600px) {
+  .survey-editor {
+    padding: 20px;
+  }
+
+  .survey-editor button {
+    width: 100%;
+    text-align: center;
+  }
+}
+
+/* ===========================
+   Estilos para SurveyList (Listado de Encuestas)
+   =========================== */
+
+.survey-list {
+  background-color: var(--bg-white);
+  padding: 30px;
+  margin: 40px auto;
+  max-width: 800px;
+  border-radius: 12px;
+  box-shadow: 0 4px 15px var(--shadow);
+}
+
+.survey-list h2 {
+  font-size: 1.8rem;
+  margin-bottom: 20px;
+  color: var(--color2);
+  text-align: center;
+}
+
+.survey-list button {
+  background-color: var(--color3);
+  color: white;
+  border: none;
+  padding: 10px 15px;
+  border-radius: 30px;
+  font-weight: bold;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+  margin-right: 10px;
+  margin-top: 10px;
+}
+
+.survey-list button:hover {
+  background-color: var(--color4);
+}
+
+.survey-item {
+  background-color: #fefefe;
+  border: 1px solid #ddd;
+  padding: 20px;
+  border-radius: 10px;
+  margin-bottom: 20px;
+  box-shadow: 0 2px 6px var(--shadow);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.survey-item strong {
+  font-size: 1.2rem;
+  color: var(--color2);
+}
+
+.survey-item p {
+  margin: 0;
+  color: var(--text-dark);
+}
+
+.survey-item h4 {
+  font-weight: 600;
+  margin: 10px 0 5px;
+}
+
+.survey-item ol {
+  margin-left: 20px;
+}
+
+.survey-item li {
+  margin-bottom: 5px;
+  line-height: 1.4;
+}
+
+.survey-item ul {
+  margin-top: 5px;
+  margin-left: 20px;
+  list-style-type: circle;
+}
+
+.survey-list .error {
+  color: red;
+  font-weight: bold;
+  text-align: center;
+  margin-top: 10px;
+}
+
+.btn-survey-actions {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 20px;
+}
+
+/* Responsive */
+@media (max-width: 600px) {
+  .survey-list {
+    padding: 20px;
+  }
+
+  .survey-list button {
+    width: 100%;
+    margin: 5px 0;
+  }
+
+  .survey-item {
+    padding: 15px;
+  }
+}
+
+.user-profile {
+  max-width: 600px;
+  margin: 50px auto;
+  padding: 30px;
+  background-color: var(--bg-white);
+  border-radius: 12px;
+  box-shadow: 0 4px 15px var(--shadow);
+}
+
+.user-profile h2 {
+  text-align: center;
+  color: var(--color2);
+  margin-bottom: 30px;
+}
+
+.profile-card p {
+  margin-bottom: 12px;
+  font-size: 1.05rem;
+  color: var(--text-dark);
+}
+
+.profile-card strong {
+  color: var(--color3);
+}
+
+.user-profile .error {
+  color: red;
+  text-align: center;
+  font-weight: bold;
+}
+
+
