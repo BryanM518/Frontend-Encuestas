@@ -6,8 +6,12 @@ import RegisterForm from '../components/auth/RegisterForm.vue'
 import SurveyEditor from '../components/Surveys/SurveyEditor.vue'
 import SurveyList from '../components/Surveys/SurveyList.vue'
 import SurveyDashboards from '../components/views/SurveyDashboards.vue'
+import SurveyResponse from '../components/Surveys/SurveyResponse.vue'
+import SurveyResponseList from '../components/Surveys/SurveyResponseList.vue'
 import HomePage from '../components/home_page.vue'
 import UserProfile from '../components/views/UserProfile.vue'
+import PublicSurveyList from '../components/Surveys/PublicSurveyList.vue'
+import SurveyStats from '../components/Surveys/SurveyStats.vue'
 
 const routes: RouteRecordRaw[] = [
   {
@@ -56,7 +60,33 @@ const routes: RouteRecordRaw[] = [
     meta: {
       requiresAuth: true
     }
+  },
+  {
+  path: '/responder/:id',
+  name: 'ResponderEncuesta',
+  component: SurveyResponse
+  },
+  {
+    path: '/public-surveys',
+    name: 'PublicSurveyList',
+    component: PublicSurveyList
+  },
+  {
+  path: '/surveys/:id/responses',
+  name: 'SurveyResponses',
+  component: SurveyResponseList,
+  meta: { requiresAuth: true }
+},
+{
+  path: '/surveys/:id/stats',
+  name: 'SurveyStats',
+  component: SurveyStats,
+  meta: {
+    requiresAuth: true
   }
+}
+
+
 ]
 
 const router = createRouter({

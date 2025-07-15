@@ -4,7 +4,7 @@ import axios from 'axios';
 
 // Define an interface for the user object for type safety
 interface User {
-  full_name: string;
+  username: string;
   email: string;
   id: string;
   created_at: string;
@@ -15,7 +15,7 @@ export function useUserProfile() {
   const loading = ref(true);
   const error = ref<string | null>(null);
   const token = localStorage.getItem('token');
-  const endpoint = 'http://localhost:8000/api/v1/auth/me';
+  const endpoint = 'http://localhost:8000/api/survey_api/auth/me';
 
   const fetchUserProfile = async () => {
     if (!token) {

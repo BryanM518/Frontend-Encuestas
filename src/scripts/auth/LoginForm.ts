@@ -30,7 +30,7 @@ export default {
         formData.append('username', this.email);
         formData.append('password', this.password);
 
-        const response = await axios.post<{ access_token: string }>('http://localhost:8000/api/v1/auth/token', formData, {
+        const response = await axios.post<{ access_token: string }>('http://localhost:8000/api/survey_api/auth/token', formData, {
           headers: {
             'Content-Type': 'application/x-www-form-urlencoded'
           }

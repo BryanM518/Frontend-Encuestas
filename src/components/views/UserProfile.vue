@@ -6,7 +6,7 @@
     <div v-else-if="error" class="error">{{ error }}</div>
 
     <div v-else class="profile-card">
-      <p><strong>Nombre:</strong> {{ user.full_name || '—' }}</p>
+      <p><strong>Nombre:</strong> {{ user.username || '—' }}</p>
       <p><strong>Email:</strong> {{ user.email }}</p>
       <p><strong>ID:</strong> {{ user.id }}</p>
       <p><strong>Cuenta creada:</strong> {{ formatDate(user.created_at) }}</p>

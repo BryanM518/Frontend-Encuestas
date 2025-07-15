@@ -1,13 +1,17 @@
-// src/composables/useSurveyEditor.ts
 import { ref, reactive, computed, watch, Ref } from 'vue';
 import axios from 'axios';
 
 interface Question {
-  _id?: string; // Optional for new questions
+  _id?: string;
   type: 'text_input' | 'multiple_choice' | 'satisfaction_scale' | 'number_input' | 'checkbox_group';
   text: string;
   options?: string[];
   is_required: boolean;
+  visible_if?: {
+    question_id: string;
+    operator: string;
+    value: string;
+  } | null;
 }
 
 interface SurveyForm {
@@ -16,6 +20,7 @@ interface SurveyForm {
   description: string;
   questions: Question[];
   status: string;
+  is_public: boolean;
 }
 
 export function useSurveyEditor(surveyToEdit: Ref<any> | null = null, emit: Function) {
@@ -25,22 +30,21 @@ export function useSurveyEditor(surveyToEdit: Ref<any> | null = null, emit: Func
     description: '',
     questions: [],
     status: 'created',
+    is_public: false,
   });
 
   const form = reactive<SurveyForm>(resetForm());
   const message = ref('');
   const success = ref(false);
-  const backendUrl = 'http://127.0.0.1:8000/api/v1/surveys/';
+  const backendUrl = 'http://127.0.0.1:8000/api/survey_api/surveys/';
   const token = localStorage.getItem('token');
 
   const isEditing = computed(() => !!form._id);
 
-  // Watch for changes in surveyToEdit prop
   if (surveyToEdit) {
     watch(
       surveyToEdit,
       (newVal) => {
-        // Deep copy the object to avoid direct mutation of props
         Object.assign(form, newVal ? JSON.parse(JSON.stringify(newVal)) : resetForm());
       },
       { immediate: true }
@@ -79,6 +83,18 @@ export function useSurveyEditor(surveyToEdit: Ref<any> | null = null, emit: Func
     form.questions[qIndex].options!.splice(oIndex, 1);
   };
 
+  const addLogic = (qIndex: number) => {
+    form.questions[qIndex].visible_if = {
+      question_id: '',
+      operator: 'equals',
+      value: '',
+    };
+  };
+
+  const removeLogic = (qIndex: number) => {
+    form.questions[qIndex].visible_if = null;
+  };
+
   const handleSubmit = async () => {
     message.value = '';
     success.value = false;
@@ -88,41 +104,37 @@ export function useSurveyEditor(surveyToEdit: Ref<any> | null = null, emit: Func
       return;
     }
 
-    // Create a deep copy of the form data to manipulate for the payload
     const payload = JSON.parse(JSON.stringify(form));
 
-    // Remove _id from the top level if it exists, as it's for API identification, not part of the payload creation for new surveys
     if ('_id' in payload) delete payload._id;
 
     payload.questions.forEach((q: Question) => {
-      // Remove temporary IDs from new questions before sending to backend
       if (typeof q._id === 'string' && q._id.startsWith('temp_')) {
         delete q._id;
       }
-      // Remove options array if the question type doesn't use it
       if (q.type !== 'multiple_choice' && q.type !== 'checkbox_group') {
         delete q.options;
-      } else if ((q.type === 'multiple_choice' || q.type === 'checkbox_group') && (!q.options || q.options.length === 0)) {
-        // Ensure options is an empty array if required but no options are provided
-        q.options = [];
+      }
+
+      // Limpiar lógica si está incompleta
+      if (q.visible_if && (!q.visible_if.question_id || q.visible_if.value === '')) {
+        delete q.visible_if;
       }
     });
 
     try {
       let response;
       if (isEditing.value) {
-        // For updating an existing survey, include the _id in the URL
         response = await axios.put(`${backendUrl}${form._id}`, payload, getAuthHeaders());
         message.value = 'Encuesta actualizada correctamente.';
       } else {
-        // For creating a new survey
         response = await axios.post(backendUrl, payload, getAuthHeaders());
         message.value = 'Encuesta creada correctamente.';
       }
 
       success.value = true;
-      Object.assign(form, resetForm()); // Reset form
-      emit('saved', response.data); // Notify parent component
+      Object.assign(form, resetForm());
+      emit('saved', response.data);
     } catch (err: any) {
       console.error('Error al guardar encuesta:', err);
       message.value = err.response?.data?.detail || 'Error al guardar la encuesta.';
@@ -140,5 +152,7 @@ export function useSurveyEditor(surveyToEdit: Ref<any> | null = null, emit: Func
     addOption,
     removeOption,
     handleSubmit,
+    addLogic,
+    removeLogic,
   };
 }

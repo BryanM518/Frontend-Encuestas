@@ -14,6 +14,9 @@
 
         <button @click="$emit('edit', survey)">Editar</button>
         <button @click="deleteSurvey(survey._id)">Eliminar</button>
+        <button @click="$router.push(`/surveys/${survey._id}/responses`)">Ver Respuestas</button>
+        <router-link :to="`/surveys/${survey._id}/stats`">📊 Ver Estadísticas</router-link>
+
 
         <div v-if="survey.questions && survey.questions.length">
           <h4>Preguntas:</h4>

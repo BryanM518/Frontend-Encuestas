@@ -6,8 +6,17 @@
       <input v-model="form.title" placeholder="Título de la Encuesta" required />
       <textarea v-model="form.description" placeholder="Descripción de la Encuesta"></textarea>
 
+      <label class="public-toggle">
+        <input type="checkbox" v-model="form.is_public" />
+        ¿Hacer pública esta encuesta?
+      </label>
+
       <h3>Preguntas</h3>
-      <div v-for="(question, qIndex) in form.questions" :key="question._id || qIndex" class="question-card">
+      <div
+        v-for="(question, qIndex) in form.questions"
+        :key="question._id || qIndex"
+        class="question-card"
+      >
         <p><strong>Pregunta {{ qIndex + 1 }}</strong></p>
 
         <label>Tipo:</label>
@@ -36,6 +45,36 @@
           <button type="button" @click="addOption(qIndex)">Agregar Opción</button>
         </div>
 
+        <!-- 🔁 Lógica condicional opcional -->
+        <div v-if="question.visible_if">
+          <h4>Lógica Condicional:</h4>
+          Mostrar esta pregunta solo si
+          <select v-model="question.visible_if.question_id">
+            <option disabled value="">Seleccione una pregunta anterior</option>
+            <option
+              v-for="(prev, pIndex) in form.questions.slice(0, qIndex)"
+              :key="prev._id"
+              :value="prev._id"
+            >
+              {{ prev.text }}
+            </option>
+          </select>
+
+          <select v-model="question.visible_if.operator">
+            <option value="equals">es igual a</option>
+            <option value="not_equals">no es igual a</option>
+            <option value="in">está en</option>
+            <option value="not_in">no está en</option>
+          </select>
+
+          <input v-model="question.visible_if.value" placeholder="Valor esperado" />
+
+          <button type="button" @click="removeLogic(qIndex)">❌ Eliminar condición</button>
+        </div>
+        <div v-else>
+          <button type="button" @click="addLogic(qIndex)">➕ Añadir lógica condicional</button>
+        </div>
+
         <button type="button" @click="removeQuestion(qIndex)">Eliminar Pregunta</button>
       </div>
 
@@ -60,7 +99,6 @@ export default defineComponent({
     },
   },
   setup(props, { emit }) {
-    // Convert props to refs so they can be watched inside the composable
     const { surveyToEdit } = toRefs(props);
 
     const {
@@ -73,6 +111,8 @@ export default defineComponent({
       addOption,
       removeOption,
       handleSubmit,
+      addLogic,
+      removeLogic,
     } = useSurveyEditor(surveyToEdit, emit);
 
     return {
@@ -85,6 +125,8 @@ export default defineComponent({
       addOption,
       removeOption,
       handleSubmit,
+      addLogic,
+      removeLogic,
     };
   },
 });

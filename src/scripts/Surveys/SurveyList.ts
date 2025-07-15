@@ -19,7 +19,7 @@ interface Survey {
 }
 
 export function useSurveyList() {
-  const backendUrl = 'http://127.0.0.1:8000/api/v1/surveys/';
+  const backendUrl = 'http://127.0.0.1:8000/api/survey_api/surveys/';
   const token = localStorage.getItem('token'); // Get token once on setup
   const surveys = ref<Survey[]>([]);
   const loading = ref(false);
