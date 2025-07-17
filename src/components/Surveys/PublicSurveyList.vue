@@ -9,7 +9,7 @@
       <li v-for="survey in surveys" :key="survey._id" class="survey-item">
         <strong>{{ survey.title }}</strong>
         <p>{{ survey.description }}</p>
-        <router-link :to="`/responder/${survey._id}`">Responder Encuesta</router-link>
+        <router-link :to="`/response/${survey._id}`">Responder Encuesta</router-link>
       </li>
     </ul>
 

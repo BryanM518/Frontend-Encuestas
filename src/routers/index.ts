@@ -12,6 +12,7 @@ import HomePage from '../components/home_page.vue'
 import UserProfile from '../components/views/UserProfile.vue'
 import PublicSurveyList from '../components/Surveys/PublicSurveyList.vue'
 import SurveyStats from '../components/Surveys/SurveyStats.vue'
+import SurveyAcess from '../components/views/SurveyAccess.vue'
 
 const routes: RouteRecordRaw[] = [
   {
@@ -83,7 +84,16 @@ const routes: RouteRecordRaw[] = [
   component: SurveyStats,
   meta: {
     requiresAuth: true
-  }
+  },
+},
+{
+  path: '/survey-access/:token_id',
+  name: 'SurveyAccess',
+  component: () => import('../components/views/SurveyAccess.vue')
+}, {
+  path: '/response/:id',
+  name: 'ResponderEncuesta',
+  component: () => import('../components/views/ResponderPublicSurvey.vue')
 }
 
 

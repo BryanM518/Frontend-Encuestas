@@ -1,11 +1,13 @@
 <template>
   <div class="survey-response-form" v-if="survey">
-    <h2>{{ survey.title }}</h2>
-    <p>{{ survey.description }}</p>
+    <div class="survey-header">
+      <h2>{{ survey.title }}</h2>
+      <p>{{ survey.description }}</p>
+    </div>
 
-    <form @submit.prevent="submitResponses">
-      <!-- Correo -->
-      <div class="email-block">
+    <form @submit.prevent="submitResponses" class="response-form">
+      <!-- Correo electrónico -->
+      <div class="email-block form-group">
         <label for="responderEmail">Correo electrónico *</label>
         <input
           id="responderEmail"
@@ -13,223 +15,294 @@
           type="email"
           required
           placeholder="tu@correo.com"
+          class="email-input"
         />
       </div>
 
-      <!-- Preguntas visibles -->
+      <!-- Preguntas -->
       <div
-        v-for="(q, index) in survey.questions"
-        :key="q._id"
-        class="question-block"
-        v-if="isQuestionVisible(q)"
+        v-for="(q, index) in visibleQuestions"
+        :key="q.id"
+        class="question-block form-group"
+        :class="{ 'conditional-question': hasCondition(q) }"
       >
-        <label :for="q._id">
-          <strong>{{ index + 1 }}. {{ q.text }}</strong>
-          <span v-if="q.is_required" class="required">*</span>
-        </label>
+        <div class="question-header">
+          <label :for="q.id">
+            <strong>{{ index + 1 }}. {{ q.text }}</strong>
+            <span v-if="q.is_required" class="required">*</span>
+          </label>
+          <span v-if="hasCondition(q)" class="condition-indicator">⚙️ Condicional</span>
+        </div>
 
-        <!-- Text input -->
+        <!-- Tipos de input -->
         <input
           v-if="q.type === 'text_input'"
-          v-model="answers[q._id]"
+          v-model="answers[q.id]"
+          :id="q.id"
           type="text"
           :required="q.is_required"
+          class="text-input"
         />
 
-        <!-- Number input -->
         <input
           v-if="q.type === 'number_input'"
-          v-model.number="answers[q._id]"
+          v-model.number="answers[q.id]"
+          :id="q.id"
           type="number"
           :required="q.is_required"
+          class="number-input"
         />
 
-        <!-- Multiple Choice -->
-        <div v-if="q.type === 'multiple_choice'">
-          <div v-for="opt in q.options" :key="opt">
+        <div v-if="q.type === 'multiple_choice'" class="options-group">
+          <div v-for="opt in q.options" :key="opt" class="option-item">
             <input
               type="radio"
-              :name="q._id"
+              :name="q.id"
+              :id="`${q.id}_${opt}`"
               :value="opt"
-              v-model="answers[q._id]"
+              v-model="answers[q.id]"
               :required="q.is_required"
             />
-            <label>{{ opt }}</label>
+            <label :for="`${q.id}_${opt}`">{{ opt }}</label>
           </div>
         </div>
 
-        <!-- Checkbox Group -->
-        <div v-if="q.type === 'checkbox_group'">
-          <div v-for="opt in q.options" :key="opt">
+        <div v-if="q.type === 'checkbox_group'" class="options-group">
+          <div v-for="opt in q.options" :key="opt" class="option-item">
             <input
               type="checkbox"
+              :id="`${q.id}_${opt}`"
               :value="opt"
-              @change="handleCheckboxChange(q._id, opt)"
-              :checked="isChecked(q._id, opt)"
+              @change="handleCheckboxChange(q.id, opt)"
+              :checked="isChecked(q.id, opt)"
             />
-            <label>{{ opt }}</label>
+            <label :for="`${q.id}_${opt}`">{{ opt }}</label>
           </div>
         </div>
 
-        <!-- Satisfaction scale -->
-        <div v-if="q.type === 'satisfaction_scale'">
+        <div v-if="q.type === 'satisfaction_scale'" class="satisfaction-scale">
+          <div class="scale-labels">
+            <span>Muy insatisfecho</span>
+            <span>Neutral</span>
+            <span>Muy satisfecho</span>
+          </div>
           <input
             type="range"
-            v-model="answers[q._id]"
+            v-model="answers[q.id]"
+            :id="q.id"
             min="1"
             max="5"
             step="1"
+            class="scale-input"
           />
-          <span>Valor: {{ answers[q._id] }}</span>
+          <div class="scale-value">
+            Valor seleccionado:
+            <span class="value-display">{{ answers[q.id] || 'Ninguno' }}</span>
+          </div>
         </div>
       </div>
 
-      <button type="submit">Enviar respuestas</button>
+      <div class="form-actions">
+        <button type="submit" class="submit-btn">Enviar respuestas</button>
+      </div>
     </form>
 
-    <p v-if="message" :class="{ success: success, error: !success }">{{ message }}</p>
+    <div v-if="message" :class="['message', success ? 'success' : 'error']">
+      {{ message }}
+    </div>
   </div>
-
-  <div v-else-if="loading">Cargando encuesta...</div>
-  <div v-else-if="error" class="error">{{ error }}</div>
 </template>
 
-<script>
+<script lang="ts">
+import { defineComponent, PropType } from 'vue';
+import { useRoute } from 'vue-router';
 import axios from 'axios';
 
-export default {
+interface Question {
+  id: string;
+  type: string;
+  text: string;
+  options?: string[];
+  is_required: boolean;
+  visible_if?: {
+    question_id: string;
+    operator: string;
+    value: any;
+  } | null;
+}
+
+interface Survey {
+  id: string;
+  title: string;
+  description: string;
+  questions: Question[];
+}
+
+export default defineComponent({
   name: 'SurveyResponseForm',
+  props: {
+    survey: {
+      type: Object as PropType<Survey>,
+      required: false
+    }
+  },
   data() {
     return {
-      survey: null,
-      answers: {},
+      localSurvey: null as Survey | null,
+      answers: {} as Record<string, any>,
       responderEmail: '',
       message: '',
       success: false,
       loading: true,
-      error: null,
+      error: null as string | null,
     };
+  },
+  computed: {
+    activeSurvey(): Survey | null {
+      return this.survey || this.localSurvey;
+    },
+    visibleQuestions(): Question[] {
+      return this.activeSurvey?.questions.filter(q => this.isQuestionVisible(q)) || [];
+    }
   },
   methods: {
     async fetchSurvey() {
-      const surveyId = this.$route.params.id;
-      try {
-        const response = await axios.get(`http://localhost:8000/api/survey_api/surveys/public/${surveyId}`);
-        this.survey = response.data;
+      this.loading = true;
+      this.error = null;
+      const route = useRoute();
+      const surveyId = route.params.id as string;
 
-        // Inicializar respuestas
-        this.survey.questions.forEach((q) => {
-          if (q.type === 'checkbox_group') {
-            this.answers[q._id] = [];
-          } else {
-            this.answers[q._id] = '';
-          }
-        });
-      } catch (err) {
-        this.error = 'No se pudo cargar la encuesta pública.';
+      try {
+        const { data } = await axios.get(
+          `http://localhost:8000/api/survey_api/surveys/public/${surveyId}`
+        );
+
+        this.localSurvey = {
+          id: data._id,
+          title: data.title,
+          description: data.description,
+          questions: data.questions.map((q: any) => ({
+            ...q,
+            id: q._id,
+          }))
+        };
+
+        this.initAnswers();
+
+      } catch (err: any) {
+        console.error('Error al cargar la encuesta pública:', err);
+        this.error = err.response?.data?.detail || 'No se pudo cargar la encuesta.';
       } finally {
         this.loading = false;
       }
     },
 
-    isChecked(questionId, option) {
-      return this.answers[questionId]?.includes(option);
-    },
-
-    handleCheckboxChange(questionId, option) {
-      const current = this.answers[questionId];
-      if (!current.includes(option)) {
-        current.push(option);
-      } else {
-        this.answers[questionId] = current.filter((o) => o !== option);
+    initAnswers() {
+      const survey = this.activeSurvey;
+      if (survey) {
+        for (const q of survey.questions) {
+          this.answers[q.id] = q.type === 'checkbox_group' ? [] : '';
+        }
       }
     },
 
-    isQuestionVisible(question) {
-  if (!question || !this.survey || !this.survey.questions) return false;
+    isChecked(qid: string, opt: string) {
+      return this.answers[qid]?.includes(opt);
+    },
+    handleCheckboxChange(qid: string, opt: string) {
+      const current = this.answers[qid];
+      if (!current.includes(opt)) {
+        this.answers[qid] = [...current, opt];
+      } else {
+        this.answers[qid] = current.filter((o: string) => o !== opt);
+      }
+    },
+    hasCondition(q: Question): boolean {
+      return !!q.visible_if;
+    },
+    isQuestionVisible(q: Question): boolean {
+      const cond = q.visible_if;
+      if (!cond || !cond.question_id) return true;
 
-  const cond = question.visible_if;
-  if (!cond || !cond.question_id) return true;
+      const answer = this.answers[cond.question_id];
+      const operator = cond.operator || 'equals';
+      const expected = cond.value;
 
-  const answer = this.answers[cond.question_id];
-  const operator = cond.operator || 'equals';
-  const expected = cond.value;
+      const toArray = (val: any): string[] => {
+        if (Array.isArray(val)) return val.map(String);
+        if (val === null || val === undefined) return [];
+        return [String(val)];
+      };
 
-  switch (operator) {
-    case 'equals':
-      return answer === expected;
-    case 'not_equals':
-      return answer !== expected;
-    case 'in':
-      return Array.isArray(expected)
-        ? expected.includes(answer)
-        : String(expected).split(',').includes(answer);
-    case 'not_in':
-      return Array.isArray(expected)
-        ? !expected.includes(answer)
-        : !String(expected).split(',').includes(answer);
-    default:
-      return true;
-  }
-},
+      const answerArray = toArray(answer);
+      const expectedArray = toArray(expected);
+
+      switch (operator) {
+        case 'equals': return answerArray.join(',') === expectedArray.join(',');
+        case 'not_equals': return answerArray.join(',') !== expectedArray.join(',');
+        case 'in': return answerArray.some(a => expectedArray.includes(a));
+        case 'not_in': return !answerArray.some(a => expectedArray.includes(a));
+        default: return true;
+      }
+    },
 
     async submitResponses() {
-      const surveyId = this.$route.params.id;
-      this.message = '';
-      this.success = false;
+      const surveyId = this.activeSurvey?.id;
+      if (!surveyId) {
+        this.message = 'Encuesta no cargada.';
+        return;
+      }
 
       if (!this.responderEmail) {
-        this.message = 'El correo es obligatorio.';
+        this.message = 'El correo electrónico es obligatorio.';
         return;
+      }
+
+      for (const q of this.visibleQuestions) {
+        if (q.is_required && !this.answers[q.id]) {
+          this.message = `La pregunta "${q.text}" es obligatoria.`;
+          return;
+        }
       }
 
       try {
         const payload = {
           responder_email: this.responderEmail,
+          ...Object.fromEntries(
+            Object.entries(this.answers).filter(([key]) =>
+              this.visibleQuestions.some(q => q.id === key)
+            )
+          )
         };
 
-        // Incluir solo respuestas de preguntas visibles
-        this.survey.questions.forEach((q) => {
-          if (this.isQuestionVisible(q)) {
-            payload[q._id] = this.answers[q._id];
-          }
-        });
+        await axios.post(
+          `http://localhost:8000/api/survey_api/surveys/${surveyId}/responses`,
+          payload
+        );
 
-        await axios.post(`http://localhost:8000/api/survey_api/surveys/${surveyId}/responses`, payload);
         this.message = '¡Respuestas enviadas correctamente!';
         this.success = true;
-      } catch (err) {
-        console.error(err);
-        this.message = err.response?.data?.detail || 'Error al enviar las respuestas.';
-        this.success = false;
+
+        setTimeout(() => {
+          this.answers = {};
+          this.responderEmail = '';
+          this.success = false;
+          this.message = '';
+        }, 3000);
+      } catch (err: any) {
+        console.error('Error al enviar respuestas:', err);
+        this.message = err.response?.data?.detail || 'No se pudieron enviar las respuestas.';
       }
-    },
+    }
   },
   mounted() {
-    this.fetchSurvey();
-  },
-};
+    if (!this.survey) {
+      this.fetchSurvey();
+    } else {
+      this.loading = false;
+      this.initAnswers();
+    }
+  }
+});
 </script>
 
-<style scoped>
-.survey-response-form {
-  max-width: 700px;
-  margin: auto;
-  padding: 20px;
-}
-.question-block {
-  margin-bottom: 20px;
-}
-.required {
-  color: red;
-}
-.email-block {
-  margin-bottom: 30px;
-}
-.error {
-  color: red;
-}
-.success {
-  color: green;
-}
-</style>
