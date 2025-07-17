@@ -59,7 +59,7 @@ export default defineComponent({
           description: data.description,
           questions: data.questions.map((q: any) => ({
             ...q,
-            id: q._id // importante para el componente hijo
+            id: q._id
           }))
         };
       } catch (err: any) {

@@ -1,11 +1,13 @@
 import { ref, reactive, computed, watch, Ref } from 'vue';
 import axios from 'axios';
 
+// Updated Question interface to include tempId directly
 interface Question {
   _id?: string;
+  tempId?: string; // Add tempId here
   type: 'text_input' | 'multiple_choice' | 'satisfaction_scale' | 'number_input' | 'checkbox_group';
   text: string;
-  options?: string[];
+  options: string[]; // Make options non-optional, always an array
   is_required: boolean;
   visible_if?: {
     question_id: string;
@@ -18,13 +20,9 @@ interface SurveyForm {
   _id: string | null;
   title: string;
   description: string;
-  questions: (Question | QuestionWithTempId)[];
+  questions: Question[]; // Now all questions in the form will conform to this type
   status: string;
   is_public: boolean;
-}
-
-interface QuestionWithTempId extends Question {
-  tempId?: string;
 }
 
 export function useSurveyEditor(surveyToEdit: Ref<any> | null = null, emit: Function) {
@@ -42,7 +40,6 @@ export function useSurveyEditor(surveyToEdit: Ref<any> | null = null, emit: Func
   const success = ref(false);
   const backendUrl = 'http://127.0.0.1:8000/api/survey_api/surveys/';
   const token = localStorage.getItem('token');
-
   const isEditing = computed(() => !!form._id);
 
   if (surveyToEdit) {
@@ -50,12 +47,13 @@ export function useSurveyEditor(surveyToEdit: Ref<any> | null = null, emit: Func
       surveyToEdit,
       (newVal) => {
         if (newVal) {
-          // Preservar IDs temporales si existen
-          const questionsWithTempIds = newVal.questions.map((q: any) => ({
+          // Ensure options are arrays and tempId is preserved/added
+          const questionsProcessed = newVal.questions.map((q: any) => ({
             ...q,
-            tempId: q._id?.startsWith('temp_') ? q._id : undefined
-          }));
-          Object.assign(form, { ...newVal, questions: questionsWithTempIds });
+            options: q.options || [], // Ensure options is an array
+            tempId: q._id?.startsWith('temp_') ? q._id : undefined // Preserve tempId if it came from server this way
+          })) as Question[]; // Cast to Question[]
+          Object.assign(form, { ...newVal, questions: questionsProcessed });
         } else {
           Object.assign(form, resetForm());
         }
@@ -73,12 +71,12 @@ export function useSurveyEditor(surveyToEdit: Ref<any> | null = null, emit: Func
   const addQuestion = () => {
     const tempId = 'temp_' + Date.now() + Math.random().toString(36).substring(2, 10);
     form.questions.push({
-      tempId, // Usar tempId en lugar de _id
+      tempId,
       type: 'text_input',
       text: '',
-      options: [],
+      options: [], // Always initialize as an empty array
       is_required: false,
-    } as QuestionWithTempId);
+    });
   };
 
   const removeQuestion = (index: number) => {
@@ -86,14 +84,12 @@ export function useSurveyEditor(surveyToEdit: Ref<any> | null = null, emit: Func
   };
 
   const addOption = (qIndex: number) => {
-    if (!form.questions[qIndex].options) {
-      form.questions[qIndex].options = [];
-    }
-    form.questions[qIndex].options!.push('');
+    // 'options' is now guaranteed to be an array due to interface change and initialization
+    form.questions[qIndex].options.push('');
   };
 
   const removeOption = (qIndex: number, oIndex: number) => {
-    form.questions[qIndex].options!.splice(oIndex, 1);
+    form.questions[qIndex].options.splice(oIndex, 1);
   };
 
   const addLogic = (qIndex: number) => {
@@ -117,19 +113,23 @@ export function useSurveyEditor(surveyToEdit: Ref<any> | null = null, emit: Func
       return;
     }
 
-    // Paso 1: Preparar payload inicial
+    // Step 1: Prepare initial payload
     const payload = JSON.parse(JSON.stringify(form)) as SurveyForm;
     const tempIdMap = new Map<string, string>();
-    
-    // Procesar preguntas con IDs temporales
-    payload.questions = payload.questions.map((q: any) => {
+
+    // Process questions with temporary IDs
+    payload.questions = payload.questions.map((q: Question) => {
       if (q.tempId) {
-        // Guardar mapeo temporal → futuro ID real
+        // Save mapping tempId -> future real ID
         tempIdMap.set(q.tempId, q.tempId);
-        delete q.tempId;
+        const newQ = { ...q }; // Create a copy to avoid mutating the reactive form directly
+        delete newQ.tempId; // Remove tempId for the backend
         
-        // Si es nueva pregunta, eliminar _id temporal
-        if (q._id?.startsWith('temp_')) delete q._id;
+        // If it's a new question (temp _id on backend), delete it
+        if (newQ._id?.startsWith('temp_')) {
+          delete newQ._id;
+        }
+        return newQ;
       }
       return q;
     });
@@ -143,23 +143,23 @@ export function useSurveyEditor(surveyToEdit: Ref<any> | null = null, emit: Func
       }
 
       const savedSurvey = response.data;
-      message.value = isEditing.value 
-        ? 'Encuesta actualizada correctamente.' 
+      message.value = isEditing.value
+        ? 'Encuesta actualizada correctamente.'
         : 'Encuesta creada correctamente.';
       
       success.value = true;
 
-      // Paso 2: Actualizar referencias en condiciones
+      // Step 2: Update references in conditions (if tempIds were present)
       if (tempIdMap.size > 0) {
         const updatedQuestions = savedSurvey.questions.map((q: any, index: number) => {
-          const originalQ = form.questions[index] as QuestionWithTempId;
-          
-          // Actualizar mapa con ID real
+          const originalQ = form.questions[index]; // Use the original question from the form
+
+          // Update map with real ID from the saved survey response
           if (originalQ.tempId) {
             tempIdMap.set(originalQ.tempId, q._id);
           }
-          
-          // Actualizar condiciones si existen
+
+          // Update conditions if they refer to a tempId that now has a real ID
           if (q.visible_if?.question_id && tempIdMap.has(q.visible_if.question_id)) {
             q.visible_if.question_id = tempIdMap.get(q.visible_if.question_id);
           }
@@ -167,33 +167,40 @@ export function useSurveyEditor(surveyToEdit: Ref<any> | null = null, emit: Func
           return q;
         });
 
-        // Paso 3: Guardar encuesta con referencias actualizadas
+        // Step 3: Save survey with updated references
         const updatePayload = {
           ...savedSurvey,
           questions: updatedQuestions
         };
-        
+
         await axios.put(
-          `${backendUrl}${savedSurvey._id}`, 
-          updatePayload, 
+          `${backendUrl}${savedSurvey._id}`,
+          updatePayload,
           getAuthHeaders()
         );
 
-        // Actualizar formulario local con datos finales
+        // Update local form with final data and preserve tempIds if they existed
         Object.assign(form, {
           ...savedSurvey,
           questions: updatedQuestions.map((q: any, index: number) => ({
             ...q,
-            tempId: (form.questions[index] as QuestionWithTempId)?.tempId
-          }))
+            tempId: form.questions[index]?.tempId // Preserve original tempId if it existed in the form
+          })) as Question[]
         });
       } else {
-        // Sin IDs temporales - actualizar directamente
-        Object.assign(form, savedSurvey);
+        // No temporary IDs - update directly, ensuring options are arrays
+        Object.assign(form, {
+          ...savedSurvey,
+          questions: savedSurvey.questions.map((q: any) => ({
+            ...q,
+            options: q.options || [],
+            tempId: (form.questions.find(fq => fq._id === q._id) || {}).tempId // Maintain tempId if it existed
+          })) as Question[]
+        });
       }
 
       emit('saved', savedSurvey);
-      
+
     } catch (err: any) {
       console.error('Error al guardar encuesta:', err);
       message.value = err.response?.data?.detail || 'Error al guardar la encuesta.';
