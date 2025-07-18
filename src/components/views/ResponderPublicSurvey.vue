@@ -11,10 +11,10 @@
 import { defineComponent, ref, onMounted } from 'vue';
 import { useRoute } from 'vue-router';
 import axios from 'axios';
-import SurveyResponseForm from '../Surveys/SurveyResponse.vue'; // asegúrate de que este sea el componente que acepta :survey como prop
+import SurveyResponseForm from '../Surveys/SurveyResponse.vue';
 
 interface Question {
-  _id: string;
+  id: string;
   type: string;
   text: string;
   options?: string[];
@@ -53,13 +53,18 @@ export default defineComponent({
           `http://localhost:8000/api/survey_api/surveys/public/${surveyId}`
         );
 
+        // ✅ Transformar _id a id para cumplir con la interfaz
         survey.value = {
           id: data._id,
           title: data.title,
           description: data.description,
           questions: data.questions.map((q: any) => ({
-            ...q,
-            id: q._id
+            id: q._id,
+            type: q.type,
+            text: q.text,
+            options: q.options,
+            is_required: q.is_required,
+            visible_if: q.visible_if || null
           }))
         };
       } catch (err: any) {
