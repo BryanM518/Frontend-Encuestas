@@ -2,6 +2,28 @@
   <div class="survey-editor">
     <h2>{{ isEditing ? 'Editar Encuesta' : 'Crear Nueva Encuesta' }}</h2>
 
+    <!-- ✅ Bloque para mostrar otras versiones de la encuesta como lista desplegable -->
+    <div v-if="isEditing" class="survey-versions-block">
+      <h3>📚 Versiones disponibles:</h3>
+      <select
+        v-model="selectedVersionId"
+        @change="handleVersionChange"
+        class="version-select"
+      >
+        <option value="" disabled>Seleccione una versión</option>
+        <option
+          v-for="version in surveyVersions"
+          :key="version._id"
+          :value="version._id"
+          :disabled="version._id === form._id"
+        >
+          Versión {{ version.version }} {{ version._id === form._id ? '(Actual)' : '' }}
+        </option>
+      </select>
+      <p v-if="versionsLoading">Cargando versiones...</p>
+      <p v-if="versionsError" class="error-text">{{ versionsError }}</p>
+    </div>
+
     <form @submit.prevent="handleSubmit">
       <div class="form-group">
         <label for="survey-title">Título de la Encuesta *</label>
@@ -251,7 +273,7 @@
           Agregar Pregunta
         </button>
         <button type="submit" class="submit-btn">
-          {{ isEditing ? 'Actualizar Encuesta' : 'Crear Encuesta' }}
+          {{ isEditing ? 'Crear Nueva Versión' : 'Crear Encuesta' }}
         </button>
       </div>
     </form>
@@ -263,21 +285,131 @@
 </template>
 
 <script lang="ts">
-import { defineComponent, toRefs, computed, watch, ref } from 'vue';
-import { useSurveyEditor } from '../../scripts/Surveys/SurveyEditor';
+import { defineComponent, ref, computed, watch, onMounted, toRefs } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
 import axios from 'axios';
+import { useSurveyEditor } from '../../scripts/Surveys/SurveyEditor';
 
 export default defineComponent({
   name: 'SurveyEditor',
-  props: {
-    surveyToEdit: {
-      type: Object,
-      default: null,
-    },
-  },
-  setup(props, { emit }) {
-    const { surveyToEdit } = toRefs(props);
+  setup(_, { emit }) {
+    const route = useRoute();
+    const router = useRouter();
+    const surveyId = route.params.id as string | undefined;
+
+    const surveyToEdit = ref<any>(null);
     const logoPreviewFailed = ref(false);
+    const selectedVersionId = ref<string>(''); // Nueva ref para el select
+
+    // ✅ Refs para versiones anteriores
+    const surveyVersions = ref<Array<{ _id: string; version: number }>>([]);
+    const versionsLoading = ref(false);
+    const versionsError = ref('');
+
+    const formatDateForInput = (dateString: string | null): string => {
+      if (!dateString) return '';
+      
+      try {
+        const date = new Date(dateString);
+        // Ajustar para la zona horaria local
+        const tzOffset = date.getTimezoneOffset() * 60000; // offset en milisegundos
+        const localISOTime = new Date(date.getTime() - tzOffset).toISOString();
+        return localISOTime.slice(0, 16);
+      } catch {
+        return '';
+      }
+    };
+
+    const loadSurveyVersions = async () => {
+      if (!surveyId) return;
+      try {
+        versionsLoading.value = true;
+        const token = localStorage.getItem('token');
+        console.log('Cargando versiones para surveyId:', surveyId);
+        console.log('Token usado:', token);
+        const { data } = await axios.get(
+          `${import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000'}/api/survey_api/surveys/${surveyId}/versions`,
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+        console.log('Versiones recibidas:', data);
+        surveyVersions.value = data;
+        // Establecer la versión actual como seleccionada
+        if (surveyId && data.some((v: any) => v._id === surveyId)) {
+          selectedVersionId.value = surveyId;
+        }
+      } catch (err: any) {
+        console.error('Error al cargar versiones:', err.response?.data || err.message);
+        versionsError.value = 'No se pudieron cargar las versiones.';
+      } finally {
+        versionsLoading.value = false;
+      }
+    };
+
+    // ✅ Cargar la encuesta actual
+    onMounted(async () => {
+      if (surveyId) {
+        try {
+          console.log('Cargando encuesta con ID:', surveyId);
+          const token = localStorage.getItem('token');
+          console.log('Token usado:', token);
+          const response = await axios.get(
+            `${import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000'}/api/survey_api/surveys/${surveyId}`,
+            { headers: { Authorization: `Bearer ${token}` } }
+          );
+          console.log('Datos de la encuesta:', response.data);
+          surveyToEdit.value = response.data;
+
+          // Formatear fechas para los inputs
+          // if (surveyToEdit.value.start_date) {
+          //   surveyToEdit.value.start_date = formatDateForInput(surveyToEdit.value.start_date);
+          // }
+          // if (surveyToEdit.value.end_date) {
+          //   surveyToEdit.value.end_date = formatDateForInput(surveyToEdit.value.end_date);
+          // }
+
+          // 🔄 Cargar versiones después
+          await loadSurveyVersions();
+        } catch (err: any) {
+          console.error('Error al cargar la encuesta:', err.response?.data || err.message);
+          versionsError.value = 'Error al cargar la encuesta.';
+        }
+      }
+    });
+
+    // ✅ Watcher para cambios en route.params.id
+    watch(
+      () => route.params.id,
+      async (newId) => {
+        if (newId && newId !== surveyId) {
+          console.log('Cambio de ID detectado:', newId);
+          try {
+            const token = localStorage.getItem('token');
+            console.log('Token usado para nueva encuesta:', token);
+            const response = await axios.get(
+              `${import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000'}/api/survey_api/surveys/${newId}`,
+              { headers: { Authorization: `Bearer ${token}` } }
+            );
+            console.log('Datos de la nueva encuesta:', response.data);
+            surveyToEdit.value = response.data;
+
+            // Formatear fechas para los inputs
+            if (surveyToEdit.value.start_date) {
+              surveyToEdit.value.start_date = formatDateForInput(surveyToEdit.value.start_date);
+            }
+            if (surveyToEdit.value.end_date) {
+              surveyToEdit.value.end_date = formatDateForInput(surveyToEdit.value.end_date);
+            }
+
+            // Recargar versiones
+            await loadSurveyVersions();
+          } catch (err: any) {
+            console.error('Error al cargar nueva encuesta:', err.response?.data || err.message);
+            versionsError.value = 'Error al cargar la nueva encuesta.';
+          }
+        }
+      },
+      { immediate: true }
+    );
 
     const {
       form,
@@ -331,6 +463,26 @@ export default defineComponent({
       logoError.value = 'No se pudo cargar la vista previa del logo.';
     };
 
+    const handleVersionClick = (versionId: string) => {
+      console.log('Botón Ver clicado, version._id:', versionId);
+      console.log('Ruta actual:', route.path);
+      console.log('Ruta destino:', `/surveys/${versionId}/edit`);
+      router.push(`/surveys/${versionId}/edit`).catch(err => {
+        console.error('Error en router.push:', err);
+      });
+    };
+
+    const handleVersionChange = () => {
+      if (selectedVersionId.value && selectedVersionId.value !== form._id) {
+        console.log('Versión seleccionada:', selectedVersionId.value);
+        console.log('Ruta actual:', route.path);
+        console.log('Ruta destino:', `/surveys/${selectedVersionId.value}/edit`);
+        router.push(`/surveys/${selectedVersionId.value}/edit`).catch(err => {
+          console.error('Error en router.push:', err);
+        });
+      }
+    };
+
     const wrappedHandleSubmit = async (event: Event) => {
       console.log('Form submitted, event:', event);
       await handleSubmit();
@@ -351,9 +503,9 @@ export default defineComponent({
       { immediate: true }
     );
 
-    const capitalize = (value: string) => {
-      if (!value) return '';
-      return value.charAt(0).toUpperCase() + value.slice(1);
+    const capitalize = (str: string) => {
+      if (!str) return '';
+      return str.charAt(0).toUpperCase() + str.slice(1);
     };
 
     return {
@@ -378,7 +530,13 @@ export default defineComponent({
       getQuestionText,
       capitalize,
       logoPreviewFailed,
-      dateError
+      dateError,
+      surveyVersions,
+      versionsLoading,
+      versionsError,
+      handleVersionClick,
+      selectedVersionId,
+      handleVersionChange
     };
   }
 });

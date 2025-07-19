@@ -12,7 +12,7 @@
       <div v-for="survey in surveys" :key="survey._id" class="survey-card">
         <div class="card-header">
           <div class="card-title">
-            <h3>{{ survey.title }}</h3>
+            <h3>{{ survey.title }} (Versión {{ survey.version }})</h3>
             <!-- <p>{{ survey.description }}</p> -->
           </div>
           <button class="generate-link-btn" @click="generateLink(survey._id)">
@@ -22,7 +22,7 @@
         
         <div class="card-actions">
           <div class="action-group">
-            <button @click="$emit('edit', survey)">
+            <button @click="$router.push(`/surveys/${survey._id}/edit`)">
               <span></span> Editar
             </button>
             <button @click="deleteSurvey(survey._id)">

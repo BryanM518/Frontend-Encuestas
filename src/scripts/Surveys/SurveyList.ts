@@ -16,6 +16,7 @@ interface Survey {
   description: string;
   status: string;
   questions: Question[];
+  version: number;
 }
 
 export function useSurveyList() {
@@ -44,8 +45,9 @@ export function useSurveyList() {
     }
 
     try {
-      const response = await axios.get<Survey[]>(backendUrl, getAuthHeaders());
-      surveys.value = response.data;
+    const response = await axios.get<Survey[]>(backendUrl, getAuthHeaders());
+    console.log('Encuestas recibidas:', response.data); // Depuración
+    surveys.value = response.data;
     } catch (err) {
       console.error('Error al cargar encuestas:', err);
       error.value = 'No se pudieron cargar las encuestas.';
@@ -53,6 +55,8 @@ export function useSurveyList() {
       loading.value = false;
     }
   };
+
+  
 
   const deleteSurvey = async (id: string) => {
     if (!confirm('¿Seguro que deseas eliminar esta encuesta?')) return;

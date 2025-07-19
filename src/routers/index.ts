@@ -1,6 +1,5 @@
 import { createRouter, createWebHistory, RouteRecordRaw } from 'vue-router'
 
-// Importa tus componentes
 import LoginForm from '../components/auth/LoginForm.vue'
 import RegisterForm from '../components/auth/RegisterForm.vue'
 import SurveyEditor from '../components/Surveys/SurveyEditor.vue'
@@ -38,6 +37,16 @@ const routes: RouteRecordRaw[] = [
       requiresAuth: true
     }
   },
+  {
+  path: '/surveys/:id/edit',
+  name: 'EditSurvey',
+  component: SurveyEditor,
+  props: true, 
+  meta: {
+    requiresAuth: true
+  }
+},
+
   {
     path: '/mysurveys',
     name: 'MySurveys',

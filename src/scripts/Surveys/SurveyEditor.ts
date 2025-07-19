@@ -1,5 +1,6 @@
 import { ref, reactive, computed, watch, Ref } from 'vue';
 import axios from 'axios';
+import { useRouter } from 'vue-router';
 
 interface Question {
   _id?: string;
@@ -31,6 +32,7 @@ interface SurveyForm {
 }
 
 export function useSurveyEditor(surveyToEdit: Ref<any> | null = null, emit: Function) {
+  const router = useRouter();
   const resetForm = (): SurveyForm => ({
     _id: null,
     title: '',
@@ -157,113 +159,152 @@ export function useSurveyEditor(surveyToEdit: Ref<any> | null = null, emit: Func
     form.questions[qIndex].visible_if = null;
   };
 
-  const handleSubmit = async () => {
-    message.value = '';
-    success.value = false;
+  // const handleSubmit = async () => {
+  //   message.value = '';
+  //   success.value = false;
 
-    if (!token) {
-      message.value = 'Debes iniciar sesión para guardar encuestas.';
-      return;
-    }
+  //   if (!token) {
+  //     message.value = 'Debes iniciar sesión para guardar encuestas.';
+  //     return;
+  //   }
 
-    if (form.start_date && form.end_date && new Date(form.start_date) > new Date(form.end_date)) {
-      message.value = 'La fecha de inicio debe ser anterior a la fecha de fin.';
-      success.value = false;
-      return;
-    }
+  //   if (form.start_date && form.end_date && new Date(form.start_date) > new Date(form.end_date)) {
+  //     message.value = 'La fecha de inicio debe ser anterior a la fecha de fin.';
+  //     success.value = false;
+  //     return;
+  //   }
 
-    const payload = JSON.parse(JSON.stringify(form)) as SurveyForm;
-    const tempIdMap = new Map<string, string>();
+  //   const payload = JSON.parse(JSON.stringify(form)) as SurveyForm;
+  //   const tempIdMap = new Map<string, string>();
 
-    payload.questions = payload.questions.map((q: Question) => {
-      if (q.tempId) {
-        tempIdMap.set(q.tempId, q.tempId);
-        const newQ = { ...q };
-        delete newQ.tempId;
-        if (newQ._id?.startsWith('temp_')) {
-          delete newQ._id;
-        }
-        return newQ;
-      }
-      return q;
-    });
+  //   payload.questions = payload.questions.map((q: Question) => {
+  //     if (q.tempId) {
+  //       tempIdMap.set(q.tempId, q.tempId);
+  //       const newQ = { ...q };
+  //       delete newQ.tempId;
+  //       if (newQ._id?.startsWith('temp_')) {
+  //         delete newQ._id;
+  //       }
+  //       return newQ;
+  //     }
+  //     return q;
+  //   });
 
-    try {
-      let response;
-      if (isEditing.value) {
-        response = await axios.put(`${backendUrl}${form._id}`, payload, getAuthHeaders());
-      } else {
-        response = await axios.post(backendUrl, payload, getAuthHeaders());
-      }
+  //   try {
+  //     let response;
+  //     if (isEditing.value) {
+  //       response = await axios.put(`${backendUrl}${form._id}`, payload, getAuthHeaders());
+  //       // Redirigir a la nueva versión
+  //       router.push(`/surveys/${response.data._id}/edit`);
+  //     } else {
+  //       response = await axios.post(backendUrl, payload, getAuthHeaders());
+  //     }
 
-      const savedSurvey = response.data;
-      message.value = isEditing.value
-        ? 'Encuesta actualizada correctamente.'
-        : 'Encuesta creada correctamente.';
+  //     const savedSurvey = response.data;
+  //     message.value = isEditing.value
+  //       ? 'Nueva versión creada correctamente.'
+  //       : 'Encuesta creada correctamente.';
       
-      success.value = true;
+  //     success.value = true;
 
-      if (tempIdMap.size > 0) {
-        const updatedQuestions = savedSurvey.questions.map((q: any, index: number) => {
-          const originalQ = form.questions[index];
-          if (originalQ.tempId) {
-            tempIdMap.set(originalQ.tempId, q._id);
-          }
-          if (q.visible_if?.question_id && tempIdMap.has(q.visible_if.question_id)) {
-            q.visible_if.question_id = tempIdMap.get(q.visible_if.question_id);
-          }
-          return q;
-        });
+  //     if (tempIdMap.size > 0) {
+  //       const updatedQuestions = savedSurvey.questions.map((q: any, index: number) => {
+  //         const originalQ = form.questions[index];
+  //         if (originalQ.tempId) {
+  //           tempIdMap.set(originalQ.tempId, q._id);
+  //         }
+  //         if (q.visible_if?.question_id && tempIdMap.has(q.visible_if.question_id)) {
+  //           q.visible_if.question_id = tempIdMap.get(q.visible_if.question_id);
+  //         }
+  //         return q;
+  //       });
 
-        const updatePayload = {
-          ...savedSurvey,
-          questions: updatedQuestions
-        };
+  //       const updatePayload = {
+  //         ...savedSurvey,
+  //         questions: updatedQuestions
+  //       };
 
-        await axios.put(
-          `${backendUrl}${savedSurvey._id}`,
-          updatePayload,
-          getAuthHeaders()
-        );
+  //       await axios.put(
+  //         `${backendUrl}${savedSurvey._id}`,
+  //         updatePayload,
+  //         getAuthHeaders()
+  //       );
 
-        Object.assign(form, {
-          ...savedSurvey,
-          start_date: savedSurvey.start_date ? new Date(savedSurvey.start_date).toISOString().slice(0, 16) : null,
-          end_date: savedSurvey.end_date ? new Date(savedSurvey.end_date).toISOString().slice(0, 16) : null,
-          logo_url: savedSurvey.logo_url || null,
-          primary_color: savedSurvey.primary_color || null,
-          secondary_color: savedSurvey.secondary_color || null,
-          font_family: savedSurvey.font_family || null,
-          questions: updatedQuestions.map((q: any, index: number) => ({
-            ...q,
-            tempId: form.questions[index]?.tempId
-          })) as Question[]
-        });
-      } else {
-        Object.assign(form, {
-          ...savedSurvey,
-          start_date: savedSurvey.start_date ? new Date(savedSurvey.start_date).toISOString().slice(0, 16) : null,
-          end_date: savedSurvey.end_date ? new Date(savedSurvey.end_date).toISOString().slice(0, 16) : null,
-          logo_url: savedSurvey.logo_url || null,
-          primary_color: savedSurvey.primary_color || null,
-          secondary_color: savedSurvey.secondary_color || null,
-          font_family: savedSurvey.font_family || null,
-          questions: (savedSurvey.questions || []).map((q: any) => ({
-            ...q,
-            options: q.options || [],
-            tempId: (form.questions.find(fq => fq._id === q._id) || {}).tempId
-          })) as Question[]
-        });
-      }
+  //       Object.assign(form, {
+  //         ...savedSurvey,
+  //         start_date: savedSurvey.start_date ? new Date(savedSurvey.start_date).toISOString().slice(0, 16) : null,
+  //         end_date: savedSurvey.end_date ? new Date(savedSurvey.end_date).toISOString().slice(0, 16) : null,
+  //         logo_url: savedSurvey.logo_url || null,
+  //         primary_color: savedSurvey.primary_color || null,
+  //         secondary_color: savedSurvey.secondary_color || null,
+  //         font_family: savedSurvey.font_family || null,
+  //         questions: updatedQuestions.map((q: any, index: number) => ({
+  //           ...q,
+  //           tempId: form.questions[index]?.tempId
+  //         })) as Question[]
+  //       });
+  //     } else {
+  //       Object.assign(form, {
+  //         ...savedSurvey,
+  //         start_date: savedSurvey.start_date ? new Date(savedSurvey.start_date).toISOString().slice(0, 16) : null,
+  //         end_date: savedSurvey.end_date ? new Date(savedSurvey.end_date).toISOString().slice(0, 16) : null,
+  //         logo_url: savedSurvey.logo_url || null,
+  //         primary_color: savedSurvey.primary_color || null,
+  //         secondary_color: savedSurvey.secondary_color || null,
+  //         font_family: savedSurvey.font_family || null,
+  //         questions: (savedSurvey.questions || []).map((q: any) => ({
+  //           ...q,
+  //           options: q.options || [],
+  //           tempId: (form.questions.find(fq => fq._id === q._id) || {}).tempId
+  //         })) as Question[]
+  //       });
+  //     }
 
-      emit('saved', savedSurvey);
+  //     emit('saved', savedSurvey);
 
-    } catch (err: any) {
-      console.error('Error al guardar encuesta:', err);
-      message.value = err.response?.data?.detail || 'Error al guardar la encuesta.';
-      success.value = false;
+  //   } catch (err: any) {
+  //     console.error('Error al guardar encuesta:', err);
+  //     message.value = err.response?.data?.detail || 'Error al guardar la encuesta.';
+  //     success.value = false;
+  //   }
+  // } ;
+
+  const handleSubmit = async () => {
+  try {
+    const payload = { ...form };
+    let response;
+    console.log('Backend URL:', backendUrl); // ✅ Depuración
+    console.log('Payload:', payload); // ✅ Depuración
+
+    if (isEditing.value) {
+      console.log('Enviando PUT a:', `${backendUrl}${form._id}`);
+      response = await axios.put(
+        `${backendUrl}${form._id}`,
+        payload,
+        getAuthHeaders()
+      );
+      router.push(`/surveys/${response.data._id}/edit`);
+    } else {
+      console.log('Enviando POST a:', backendUrl);
+      response = await axios.post(
+        backendUrl,
+        payload,
+        getAuthHeaders()
+      );
+      router.push(`/surveys/${response.data._id}/edit`);
     }
-  };
+
+    message.value = isEditing.value
+      ? "Encuesta actualizada exitosamente"
+      : "Encuesta creada exitosamente";
+    success.value = true;
+  } catch (err: any) {
+    console.error("Error al guardar encuesta:", err);
+    console.log('Response data:', err.response?.data); // ✅ Depuración
+    message.value = `Error al guardar encuesta: ${err.message}`;
+    success.value = false;
+  }
+};
 
   return {
     form,
@@ -279,5 +320,5 @@ export function useSurveyEditor(surveyToEdit: Ref<any> | null = null, emit: Func
     removeLogic,
     handleLogoUpload,
     logoError
-  };
+  } ;
 }
