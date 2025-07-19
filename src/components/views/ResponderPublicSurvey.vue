@@ -30,6 +30,7 @@ interface Survey {
   id: string;
   title: string;
   description: string;
+  status: string;
   questions: Question[];
 }
 
@@ -58,6 +59,7 @@ export default defineComponent({
           id: data._id,
           title: data.title,
           description: data.description,
+          status: data.status, // Agregar status para cumplir con la interfaz
           questions: data.questions.map((q: any) => ({
             id: q._id,
             type: q.type,

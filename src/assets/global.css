@@ -876,7 +876,7 @@ body {
 }
 
 .survey-response-form button {
-  background-color: var(--color3);
+  background-color: var(--color3); /* #9e0b41 */
   color: white;
   padding: 12px 20px;
   border: none;
@@ -885,8 +885,23 @@ body {
   cursor: pointer;
   margin-top: 20px;
 }
-
 .survey-response-form button:hover {
+  background-color: var(--color4); /* #cc3e18 */
+}
+.survey-response-form button[type="submit"] {
+  width: 100%;
+  padding: 14px;
+  background-color: var(--color3);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: bold;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+  margin-top: 20px;
+}
+.survey-response-form button[type="submit"]:hover {
   background-color: var(--color4);
 }
 

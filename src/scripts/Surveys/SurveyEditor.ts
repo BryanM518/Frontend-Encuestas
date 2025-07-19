@@ -1,13 +1,12 @@
 import { ref, reactive, computed, watch, Ref } from 'vue';
 import axios from 'axios';
 
-// Updated Question interface to include tempId directly
 interface Question {
   _id?: string;
-  tempId?: string; // Add tempId here
+  tempId?: string;
   type: 'text_input' | 'multiple_choice' | 'satisfaction_scale' | 'number_input' | 'checkbox_group';
   text: string;
-  options: string[]; // Make options non-optional, always an array
+  options: string[];
   is_required: boolean;
   visible_if?: {
     question_id: string;
@@ -20,9 +19,15 @@ interface SurveyForm {
   _id: string | null;
   title: string;
   description: string;
-  questions: Question[]; // Now all questions in the form will conform to this type
+  questions: Question[];
   status: string;
   is_public: boolean;
+  start_date: string | null;
+  end_date: string | null;
+  logo_url: string | null;
+  primary_color: string | null;
+  secondary_color: string | null;
+  font_family: string | null;
 }
 
 export function useSurveyEditor(surveyToEdit: Ref<any> | null = null, emit: Function) {
@@ -33,12 +38,20 @@ export function useSurveyEditor(surveyToEdit: Ref<any> | null = null, emit: Func
     questions: [],
     status: 'created',
     is_public: false,
+    start_date: null,
+    end_date: null,
+    logo_url: null,
+    primary_color: null,
+    secondary_color: null,
+    font_family: null
   });
 
   const form = reactive<SurveyForm>(resetForm());
   const message = ref('');
   const success = ref(false);
-  const backendUrl = 'http://127.0.0.1:8000/api/survey_api/surveys/';
+  const logoError = ref<string | null>(null);
+  const backendUrl = `${import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000'}/api/survey_api/surveys/`;
+  const uploadUrl = `${import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000'}/api/survey_api/surveys/upload-logo`;
   const token = localStorage.getItem('token');
   const isEditing = computed(() => !!form._id);
 
@@ -47,13 +60,21 @@ export function useSurveyEditor(surveyToEdit: Ref<any> | null = null, emit: Func
       surveyToEdit,
       (newVal) => {
         if (newVal) {
-          // Ensure options are arrays and tempId is preserved/added
-          const questionsProcessed = newVal.questions.map((q: any) => ({
+          const questionsProcessed = (newVal.questions || []).map((q: any) => ({
             ...q,
-            options: q.options || [], // Ensure options is an array
-            tempId: q._id?.startsWith('temp_') ? q._id : undefined // Preserve tempId if it came from server this way
-          })) as Question[]; // Cast to Question[]
-          Object.assign(form, { ...newVal, questions: questionsProcessed });
+            options: q.options || [],
+            tempId: q._id?.startsWith('temp_') ? q._id : undefined
+          })) as Question[];
+          Object.assign(form, {
+            ...newVal,
+            start_date: newVal.start_date ? new Date(newVal.start_date).toISOString().slice(0, 16) : null,
+            end_date: newVal.end_date ? new Date(newVal.end_date).toISOString().slice(0, 16) : null,
+            logo_url: newVal.logo_url || null,
+            primary_color: newVal.primary_color || null,
+            secondary_color: newVal.secondary_color || null,
+            font_family: newVal.font_family || null,
+            questions: questionsProcessed
+          });
         } else {
           Object.assign(form, resetForm());
         }
@@ -62,11 +83,44 @@ export function useSurveyEditor(surveyToEdit: Ref<any> | null = null, emit: Func
     );
   }
 
-  const getAuthHeaders = () => ({
+  const getAuthHeaders = (contentType: string = 'application/json') => ({
     headers: {
       Authorization: `Bearer ${token}`,
+      'Content-Type': contentType
     },
   });
+
+  const handleLogoUpload = async (event: Event) => {
+    const input = event.target as HTMLInputElement;
+    if (!input.files || input.files.length === 0) {
+      logoError.value = 'No se seleccionó ningún archivo.';
+      return;
+    }
+
+    const file = input.files[0];
+    if (!['image/png', 'image/jpeg'].includes(file.type)) {
+      logoError.value = 'Solo se permiten archivos PNG o JPEG.';
+      return;
+    }
+
+    if (file.size > 2 * 1024 * 1024) {
+      logoError.value = 'El archivo no debe superar los 2MB.';
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append('file', file);
+
+    try {
+      const response = await axios.post(uploadUrl, formData, getAuthHeaders('multipart/form-data'));
+      form.logo_url = response.data.logo_url;
+      logoError.value = null;
+    } catch (err: any) {
+      console.error('Error uploading logo:', err);
+      logoError.value = err.response?.data?.detail || 'Error al subir el logo. Verifica la conexión o intenta de nuevo.';
+      form.logo_url = null;
+    }
+  };
 
   const addQuestion = () => {
     const tempId = 'temp_' + Date.now() + Math.random().toString(36).substring(2, 10);
@@ -74,7 +128,7 @@ export function useSurveyEditor(surveyToEdit: Ref<any> | null = null, emit: Func
       tempId,
       type: 'text_input',
       text: '',
-      options: [], // Always initialize as an empty array
+      options: [],
       is_required: false,
     });
   };
@@ -84,7 +138,6 @@ export function useSurveyEditor(surveyToEdit: Ref<any> | null = null, emit: Func
   };
 
   const addOption = (qIndex: number) => {
-    // 'options' is now guaranteed to be an array due to interface change and initialization
     form.questions[qIndex].options.push('');
   };
 
@@ -113,19 +166,20 @@ export function useSurveyEditor(surveyToEdit: Ref<any> | null = null, emit: Func
       return;
     }
 
-    // Step 1: Prepare initial payload
+    if (form.start_date && form.end_date && new Date(form.start_date) > new Date(form.end_date)) {
+      message.value = 'La fecha de inicio debe ser anterior a la fecha de fin.';
+      success.value = false;
+      return;
+    }
+
     const payload = JSON.parse(JSON.stringify(form)) as SurveyForm;
     const tempIdMap = new Map<string, string>();
 
-    // Process questions with temporary IDs
     payload.questions = payload.questions.map((q: Question) => {
       if (q.tempId) {
-        // Save mapping tempId -> future real ID
         tempIdMap.set(q.tempId, q.tempId);
-        const newQ = { ...q }; // Create a copy to avoid mutating the reactive form directly
-        delete newQ.tempId; // Remove tempId for the backend
-        
-        // If it's a new question (temp _id on backend), delete it
+        const newQ = { ...q };
+        delete newQ.tempId;
         if (newQ._id?.startsWith('temp_')) {
           delete newQ._id;
         }
@@ -149,25 +203,18 @@ export function useSurveyEditor(surveyToEdit: Ref<any> | null = null, emit: Func
       
       success.value = true;
 
-      // Step 2: Update references in conditions (if tempIds were present)
       if (tempIdMap.size > 0) {
         const updatedQuestions = savedSurvey.questions.map((q: any, index: number) => {
-          const originalQ = form.questions[index]; // Use the original question from the form
-
-          // Update map with real ID from the saved survey response
+          const originalQ = form.questions[index];
           if (originalQ.tempId) {
             tempIdMap.set(originalQ.tempId, q._id);
           }
-
-          // Update conditions if they refer to a tempId that now has a real ID
           if (q.visible_if?.question_id && tempIdMap.has(q.visible_if.question_id)) {
             q.visible_if.question_id = tempIdMap.get(q.visible_if.question_id);
           }
-          
           return q;
         });
 
-        // Step 3: Save survey with updated references
         const updatePayload = {
           ...savedSurvey,
           questions: updatedQuestions
@@ -179,22 +226,32 @@ export function useSurveyEditor(surveyToEdit: Ref<any> | null = null, emit: Func
           getAuthHeaders()
         );
 
-        // Update local form with final data and preserve tempIds if they existed
         Object.assign(form, {
           ...savedSurvey,
+          start_date: savedSurvey.start_date ? new Date(savedSurvey.start_date).toISOString().slice(0, 16) : null,
+          end_date: savedSurvey.end_date ? new Date(savedSurvey.end_date).toISOString().slice(0, 16) : null,
+          logo_url: savedSurvey.logo_url || null,
+          primary_color: savedSurvey.primary_color || null,
+          secondary_color: savedSurvey.secondary_color || null,
+          font_family: savedSurvey.font_family || null,
           questions: updatedQuestions.map((q: any, index: number) => ({
             ...q,
-            tempId: form.questions[index]?.tempId // Preserve original tempId if it existed in the form
+            tempId: form.questions[index]?.tempId
           })) as Question[]
         });
       } else {
-        // No temporary IDs - update directly, ensuring options are arrays
         Object.assign(form, {
           ...savedSurvey,
-          questions: savedSurvey.questions.map((q: any) => ({
+          start_date: savedSurvey.start_date ? new Date(savedSurvey.start_date).toISOString().slice(0, 16) : null,
+          end_date: savedSurvey.end_date ? new Date(savedSurvey.end_date).toISOString().slice(0, 16) : null,
+          logo_url: savedSurvey.logo_url || null,
+          primary_color: savedSurvey.primary_color || null,
+          secondary_color: savedSurvey.secondary_color || null,
+          font_family: savedSurvey.font_family || null,
+          questions: (savedSurvey.questions || []).map((q: any) => ({
             ...q,
             options: q.options || [],
-            tempId: (form.questions.find(fq => fq._id === q._id) || {}).tempId // Maintain tempId if it existed
+            tempId: (form.questions.find(fq => fq._id === q._id) || {}).tempId
           })) as Question[]
         });
       }
@@ -220,5 +277,7 @@ export function useSurveyEditor(surveyToEdit: Ref<any> | null = null, emit: Func
     handleSubmit,
     addLogic,
     removeLogic,
+    handleLogoUpload,
+    logoError
   };
 }

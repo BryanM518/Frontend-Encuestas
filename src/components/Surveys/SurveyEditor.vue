@@ -30,6 +30,94 @@
         </label>
       </div>
 
+      <div class="form-group">
+        <label for="survey-start-date">Fecha de Apertura</label>
+        <input
+          id="survey-start-date"
+          type="datetime-local"
+          v-model="form.start_date"
+        />
+      </div>
+
+      <div class="form-group">
+        <label for="survey-end-date">Fecha de Cierre</label>
+        <input
+          id="survey-end-date"
+          type="datetime-local"
+          v-model="form.end_date"
+        />
+        <p v-if="dateError" class="error-text">{{ dateError }}</p>
+      </div>
+
+      <div class="form-group">
+        <label>Estado de la Encuesta:</label>
+        <span :class="['survey-status', form.status]">{{ capitalize(form.status) }}</span>
+      </div>
+
+      <h3>Personalización Visual</h3>
+      <div class="customization-group">
+        <div class="form-group">
+          <label for="survey-logo">Logo (PNG o JPEG, máx. 2MB)</label>
+          <input
+            id="survey-logo"
+            type="file"
+            accept="image/png,image/jpeg"
+            @change="handleLogoUpload"
+          />
+          <p v-if="logoError" class="error-text">{{ logoError }}</p>
+          <img v-if="form.logo_url && !logoPreviewFailed" :src="form.logo_url" alt="Logo Preview" class="logo-preview" @error="handleLogoPreviewError" />
+        </div>
+
+        <div class="form-group">
+          <label for="primary-color">Color Primario</label>
+          <input
+            id="primary-color"
+            type="color"
+            v-model="form.primary_color"
+          />
+        </div>
+
+        <div class="form-group">
+          <label for="secondary-color">Color Secundario</label>
+          <input
+            id="secondary-color"
+            type="color"
+            v-model="form.secondary_color"
+          />
+        </div>
+
+        <div class="form-group">
+          <label for="font-family">Tipografía</label>
+          <select id="font-family" v-model="form.font_family">
+            <option value="">Por defecto</option>
+            <option value="Arial">Arial</option>
+            <option value="Helvetica">Helvetica</option>
+            <option value="Times New Roman">Times New Roman</option>
+            <option value="Georgia">Georgia</option>
+            <option value="Roboto">Roboto</option>
+            <option value="Open Sans">Open Sans</option>
+            <option value="Lato">Lato</option>
+            <option value="Montserrat">Montserrat</option>
+          </select>
+        </div>
+
+        <div class="preview-container" :style="previewStyle">
+          <h4>Vista Previa</h4>
+          <div class="preview-content">
+            <img v-if="form.logo_url && !logoPreviewFailed" :src="form.logo_url" alt="Logo Preview" class="preview-logo" @error="handleLogoPreviewError" />
+            <p :style="{ fontFamily: form.font_family || 'inherit' }">
+              Ejemplo de texto con la tipografía seleccionada.
+            </p>
+            <button :style="{ backgroundColor: form.primary_color || '#3498db', color: '#fff' }">
+              Botón Primario
+            </button>
+            <button :style="{ backgroundColor: form.secondary_color || '#2ecc71', color: '#fff' }">
+              Botón Secundario
+            </button>
+          </div>
+        </div>
+      </div>
+
       <h3>Preguntas</h3>
       
       <div
@@ -104,7 +192,6 @@
           </button>
         </div>
 
-        <!-- 🔁 Lógica condicional -->
         <div v-if="question.visible_if" class="logic-group">
           <h4>Lógica Condicional:</h4>
           <div class="logic-controls">
@@ -176,8 +263,9 @@
 </template>
 
 <script lang="ts">
-import { defineComponent, toRefs } from 'vue';
+import { defineComponent, toRefs, computed, watch, ref } from 'vue';
 import { useSurveyEditor } from '../../scripts/Surveys/SurveyEditor';
+import axios from 'axios';
 
 export default defineComponent({
   name: 'SurveyEditor',
@@ -189,6 +277,7 @@ export default defineComponent({
   },
   setup(props, { emit }) {
     const { surveyToEdit } = toRefs(props);
+    const logoPreviewFailed = ref(false);
 
     const {
       form,
@@ -202,27 +291,69 @@ export default defineComponent({
       handleSubmit,
       addLogic,
       removeLogic,
+      handleLogoUpload,
+      logoError
     } = useSurveyEditor(surveyToEdit, emit);
 
-    // Determina si una pregunta tiene referencia temporal
+    const dateError = computed(() => {
+      if (form.start_date && form.end_date && new Date(form.start_date) > new Date(form.end_date)) {
+        return "La fecha de inicio debe ser anterior a la fecha de fin";
+      }
+      return "";
+    });
+
+    const previewStyle = computed(() => ({
+      '--primary-color': form.primary_color || '#3498db',
+      '--secondary-color': form.secondary_color || '#2ecc71',
+      fontFamily: form.font_family || 'inherit'
+    }));
+
     const hasTempReference = (question: any) => {
       if (!question.visible_if) return false;
       return question.visible_if.question_id?.startsWith('temp_');
     };
 
-    // Obtener preguntas anteriores a la actual
     const getPreviousQuestions = (currentIndex: number) => {
       return form.questions.slice(0, currentIndex);
     };
 
-    // Generar clave única para cada pregunta
     const getQuestionKey = (question: any, index: number) => {
       return question.tempId || question._id || `question-${index}`;
     };
 
-    // Obtener texto para mostrar en opciones de condiciones
     const getQuestionText = (question: any, index: number) => {
       return question.text || `Pregunta ${index + 1} (sin texto)`;
+    };
+
+    const handleLogoPreviewError = () => {
+      logoPreviewFailed.value = true;
+      form.logo_url = null;
+      logoError.value = 'No se pudo cargar la vista previa del logo.';
+    };
+
+    const wrappedHandleSubmit = async (event: Event) => {
+      console.log('Form submitted, event:', event);
+      await handleSubmit();
+    };
+
+    watch(
+      () => [form.start_date, form.end_date],
+      () => {
+        const now = new Date();
+        if (form.end_date && new Date(form.end_date) < now) {
+          form.status = "closed";
+        } else if (form.start_date && new Date(form.start_date) <= now) {
+          form.status = "published";
+        } else {
+          form.status = "created";
+        }
+      },
+      { immediate: true }
+    );
+
+    const capitalize = (value: string) => {
+      if (!value) return '';
+      return value.charAt(0).toUpperCase() + value.slice(1);
     };
 
     return {
@@ -234,266 +365,426 @@ export default defineComponent({
       removeQuestion,
       addOption,
       removeOption,
-      handleSubmit,
+      handleSubmit: wrappedHandleSubmit,
       addLogic,
       removeLogic,
+      handleLogoUpload,
+      logoError,
+      handleLogoPreviewError,
+      previewStyle,
       hasTempReference,
       getPreviousQuestions,
       getQuestionKey,
       getQuestionText,
+      capitalize,
+      logoPreviewFailed,
+      dateError
     };
-  },
+  }
 });
 </script>
 
 <style scoped>
 .survey-editor {
-  max-width: 800px;
-  margin: 0 auto;
-  padding: 20px;
-  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  max-width: 900px;
+  margin: 2rem auto;
+  padding: 2rem;
+  background-color: var(--bg-white);
+  border-radius: 12px;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.1);
 }
 
 h2 {
-  color: #2c3e50;
   text-align: center;
-  margin-bottom: 30px;
+  color: var(--color3);
+  margin-bottom: 2rem;
+  font-size: 2.2rem;
+  position: relative;
+  padding-bottom: 1rem;
+}
+
+h2::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 150px;
+  height: 4px;
+  background: linear-gradient(to right, var(--color3), var(--color4));
+  border-radius: 3px;
 }
 
 h3 {
-  color: #3498db;
-  border-bottom: 2px solid #3498db;
-  padding-bottom: 10px;
-  margin-top: 30px;
+  color: var(--color2);
+  border-bottom: 2px solid var(--color5);
+  padding-bottom: 0.8rem;
+  margin: 2rem 0 1.5rem;
+  font-size: 1.6rem;
 }
 
 h4 {
-  color: #2c3e50;
-  margin-top: 15px;
-  margin-bottom: 10px;
+  color: var(--color2);
+  margin: 1.5rem 0 1rem;
+  font-size: 1.2rem;
 }
 
 .form-group {
-  margin-bottom: 20px;
+  margin-bottom: 1.8rem;
 }
 
 label {
   display: block;
-  margin-bottom: 8px;
+  margin-bottom: 0.7rem;
   font-weight: 600;
-  color: #2c3e50;
+  color: var(--text-dark);
+  font-size: 1.05rem;
 }
 
 input[type="text"],
 input[type="email"],
 input[type="number"],
+input[type="datetime-local"],
+input[type="color"],
+input[type="file"],
 textarea,
 select {
   width: 100%;
-  padding: 10px;
+  padding: 1rem;
   border: 1px solid #ddd;
-  border-radius: 4px;
-  font-size: 16px;
-  transition: border-color 0.3s;
+  border-radius: 8px;
+  font-size: 1rem;
+  transition: all 0.3s ease;
+  background-color: var(--bg-light);
 }
 
 input[type="text"]:focus,
 input[type="email"]:focus,
 input[type="number"]:focus,
+input[type="datetime-local"]:focus,
+input[type="color"]:focus,
+input[type="file"]:focus,
 textarea:focus,
 select:focus {
-  border-color: #3498db;
   outline: none;
-  box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.2);
+  border-color: var(--color3);
+  box-shadow: 0 0 0 3px rgba(158, 11, 65, 0.15);
+  background-color: var(--bg-white);
 }
 
 textarea {
-  min-height: 80px;
+  min-height: 100px;
   resize: vertical;
 }
 
 .public-toggle {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
+  font-weight: 500;
+  color: var(--text-dark);
+}
+
+.survey-status {
+  display: inline-block;
+  padding: 0.5rem 1rem;
+  border-radius: 20px;
+  font-weight: 600;
+  font-size: 0.95rem;
+}
+.survey-status.created {
+  background-color: rgba(240, 151, 28, 0.2);
+  color: #b36d0a;
+}
+.survey-status.published {
+  background-color: rgba(46, 204, 113, 0.2);
+  color: #1a7d48;
+}
+.survey-status.closed {
+  background-color: rgba(231, 76, 60, 0.2);
+  color: #c0392b;
+}
+
+.error-text {
+  color: var(--color4);
+  font-size: 0.95rem;
+  margin-top: 0.5rem;
+  font-weight: 500;
+}
+
+.customization-group {
+  background-color: rgba(25, 118, 210, 0.05);
+  padding: 1.8rem;
+  border-radius: 10px;
+  margin-bottom: 1.5rem;
+  border: 1px solid rgba(25, 118, 210, 0.1);
+}
+
+.logo-preview {
+  max-width: 200px;
+  margin-top: 1rem;
+  border-radius: 8px;
+  border: 1px solid #eee;
+  padding: 5px;
+}
+
+.preview-container {
+  margin-top: 1.5rem;
+  padding: 1.5rem;
+  border: 1px solid #ddd;
+  border-radius: 10px;
+  background-color: var(--bg-white);
+  box-shadow: 0 3px 15px rgba(0, 0, 0, 0.05);
+}
+
+.preview-content {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  align-items: center;
+  padding: 1rem;
+}
+
+.preview-logo {
+  max-width: 120px;
+  border-radius: 6px;
+}
+
+.preview-container button {
+  padding: 0.8rem 1.5rem;
+  border: none;
+  border-radius: 6px;
+  cursor: default;
+  font-weight: 600;
+  transition: all 0.3s ease;
+  min-width: 180px;
+  text-align: center;
 }
 
 .question-card {
-  background-color: #f9f9f9;
-  border: 1px solid #e0e0e0;
-  border-radius: 8px;
-  padding: 20px;
-  margin-bottom: 25px;
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+  background-color: var(--bg-white);
+  border-radius: 10px;
+  padding: 1.8rem;
+  margin-bottom: 2rem;
+  box-shadow: 0 4px 15px var(--shadow);
+  border: 1px solid rgba(0, 0, 0, 0.05);
+  position: relative;
+  overflow: hidden;
+  transition: all 0.3s ease;
+}
+
+.question-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+}
+
+.question-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 5px;
+  height: 100%;
+  background: linear-gradient(to bottom, var(--color3), var(--color4));
 }
 
 .question-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 15px;
-  padding-bottom: 10px;
+  margin-bottom: 1.5rem;
+  padding-bottom: 1rem;
   border-bottom: 1px solid #eee;
 }
 
 .options-group {
-  margin-top: 15px;
-  padding: 15px;
-  background-color: #f0f7ff;
-  border-radius: 6px;
+  margin-top: 1.5rem;
+  padding: 1.5rem;
+  background-color: rgba(46, 204, 113, 0.05);
+  border-radius: 8px;
+  border: 1px solid rgba(46, 204, 113, 0.1);
 }
 
 .option-item {
   display: flex;
-  gap: 10px;
-  margin-bottom: 10px;
+  gap: 12px;
+  margin-bottom: 12px;
   align-items: center;
 }
 
 .option-item input {
   flex: 1;
+  padding: 0.9rem;
 }
 
 .logic-group {
-  margin-top: 20px;
-  padding: 15px;
-  background-color: #fff8e6;
-  border-radius: 6px;
-  border-left: 4px solid #ffc107;
+  margin-top: 1.5rem;
+  padding: 1.5rem;
+  background-color: rgba(255, 193, 7, 0.08);
+  border-radius: 8px;
+  border-left: 4px solid var(--color5);
 }
 
 .logic-controls {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 15px;
 }
 
 .logic-row {
   display: flex;
-  gap: 10px;
+  gap: 15px;
   align-items: center;
   flex-wrap: wrap;
 }
 
 .logic-row > * {
   flex: 1;
-  min-width: 120px;
+  min-width: 150px;
 }
 
 .add-logic {
-  margin-top: 15px;
+  margin-top: 1.5rem;
 }
 
 .actions {
   display: flex;
   justify-content: space-between;
-  margin-top: 30px;
-  padding-top: 20px;
+  margin-top: 2.5rem;
+  padding-top: 1.5rem;
   border-top: 1px solid #eee;
 }
 
 button {
-  padding: 10px 15px;
+  padding: 0.9rem 1.7rem;
   border: none;
-  border-radius: 4px;
+  border-radius: 8px;
   cursor: pointer;
   font-weight: 600;
-  transition: all 0.2s;
+  font-size: 1.05rem;
+  transition: all 0.3s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
 }
 
 .add-btn {
-  background-color: #2ecc71;
+  background: linear-gradient(135deg, var(--color5), #e67e22);
   color: white;
+  box-shadow: 0 4px 15px rgba(240, 151, 28, 0.3);
 }
 
 .add-btn:hover {
-  background-color: #27ae60;
+  background: linear-gradient(135deg, #e67e22, var(--color4));
+  transform: translateY(-3px);
+  box-shadow: 0 6px 20px rgba(240, 151, 28, 0.4);
 }
 
 .submit-btn {
-  background-color: #3498db;
+  background: linear-gradient(135deg, var(--color3), var(--color4));
   color: white;
-  padding: 12px 25px;
+  padding: 1rem 2.5rem;
+  box-shadow: 0 4px 15px rgba(158, 11, 65, 0.3);
 }
 
 .submit-btn:hover {
-  background-color: #2980b9;
+  background: linear-gradient(135deg, var(--color4), var(--color5));
+  transform: translateY(-3px);
+  box-shadow: 0 6px 20px rgba(158, 11, 65, 0.4);
 }
 
 .delete-btn {
-  background-color: #e74c3c;
+  background-color: rgba(231, 76, 60, 0.9);
   color: white;
+  box-shadow: 0 3px 10px rgba(231, 76, 60, 0.3);
 }
 
 .delete-btn:hover {
-  background-color: #c0392b;
+  background-color: rgba(192, 57, 43, 0.9);
+  transform: translateY(-3px);
+  box-shadow: 0 5px 15px rgba(231, 76, 60, 0.4);
 }
 
 .small-btn {
-  padding: 6px 10px;
-  font-size: 14px;
+  padding: 0.6rem 1rem;
+  font-size: 0.95rem;
+  border-radius: 6px;
+  background-color: rgba(231, 76, 60, 0.8);
+  color: white;
+}
+
+.small-btn:hover {
+  background-color: rgba(192, 57, 43, 0.9);
 }
 
 .add-logic-btn {
-  background-color: #f39c12;
+  background: linear-gradient(135deg, var(--color5), #d35400);
   color: white;
+  box-shadow: 0 4px 10px rgba(243, 156, 18, 0.3);
 }
 
 .add-logic-btn:hover {
-  background-color: #d35400;
+  background: linear-gradient(135deg, #d35400, var(--color4));
+  transform: translateY(-3px);
+  box-shadow: 0 6px 15px rgba(243, 156, 18, 0.4);
 }
 
 .remove-logic-btn {
-  background-color: #95a5a6;
+  background-color: rgba(149, 165, 166, 0.9);
   color: white;
-  margin-top: 10px;
+  margin-top: 1rem;
+  padding: 0.7rem 1.2rem;
 }
 
 .remove-logic-btn:hover {
-  background-color: #7f8c8d;
+  background-color: rgba(127, 140, 141, 0.9);
+  transform: translateY(-3px);
 }
 
 .temp-ref-warning {
   background-color: #fef9e7;
-  border: 1px solid #f1c40f;
+  border: 1px solid var(--color5);
   color: #d35400;
-  padding: 10px;
-  border-radius: 4px;
-  margin-top: 15px;
-  font-size: 0.9em;
+  padding: 0.9rem;
+  border-radius: 8px;
+  margin-top: 1.5rem;
+  font-weight: 500;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
 }
 
 .message {
-  padding: 15px;
-  border-radius: 4px;
-  margin-top: 20px;
+  padding: 1.2rem;
+  border-radius: 8px;
+  margin-top: 2rem;
   text-align: center;
   font-weight: 600;
+  font-size: 1.1rem;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.08);
 }
 
 .success {
-  background-color: #d4edda;
-  color: #155724;
-  border: 1px solid #c3e6cb;
+  background-color: rgba(46, 204, 113, 0.15);
+  color: #1a7d48;
+  border: 1px solid rgba(46, 204, 113, 0.3);
 }
 
 .error {
-  background-color: #f8d7da;
-  color: #721c24;
-  border: 1px solid #f5c6cb;
+  background-color: rgba(231, 76, 60, 0.15);
+  color: #c0392b;
+  border: 1px solid rgba(231, 76, 60, 0.3);
 }
 
 @media (max-width: 768px) {
   .survey-editor {
-    padding: 15px;
+    padding: 1.5rem;
   }
   
   .logic-row {
     flex-direction: column;
-    gap: 8px;
+    gap: 12px;
   }
   
   .logic-row > * {
@@ -502,11 +793,37 @@ button {
   
   .actions {
     flex-direction: column;
-    gap: 10px;
+    gap: 15px;
   }
   
+  .add-btn,
   .submit-btn {
     width: 100%;
+    text-align: center;
+  }
+  
+  h2 {
+    font-size: 1.9rem;
+  }
+  
+  h3 {
+    font-size: 1.4rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .question-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 15px;
+  }
+  
+  .customization-group {
+    padding: 1.2rem;
+  }
+  
+  h2 {
+    font-size: 1.7rem;
   }
 }
 </style>
