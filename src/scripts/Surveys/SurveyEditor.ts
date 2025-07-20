@@ -29,6 +29,7 @@ interface SurveyForm {
   primary_color: string | null;
   secondary_color: string | null;
   font_family: string | null;
+  isFromTemplate?: boolean; // Nuevo campo para indicar si es una encuesta desde plantilla
 }
 
 export function useSurveyEditor(emit: Function) {
@@ -47,7 +48,8 @@ export function useSurveyEditor(emit: Function) {
     logo_file_id: null,
     primary_color: null,
     secondary_color: null,
-    font_family: null
+    font_family: null,
+    isFromTemplate: false
   });
 
   const form = reactive<SurveyForm>(resetForm());
@@ -58,7 +60,7 @@ export function useSurveyEditor(emit: Function) {
   const backendUrl = `${import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000'}/api/survey_api/surveys/`;
   const uploadUrl = `${import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000'}/api/survey_api/surveys/upload-logo`;
   const token = localStorage.getItem('token');
-  const isEditing = computed(() => !!form._id);
+  const isEditing = computed(() => !!form._id && !form.isFromTemplate); // Modificado para considerar isFromTemplate
 
   const surveyVersions = ref<Array<{ _id: string; version: number }>>([]);
   const versionsLoading = ref(false);
@@ -77,22 +79,42 @@ export function useSurveyEditor(emit: Function) {
     }
   };
 
-  const getAuthHeaders = (contentType: string = 'application/json') => ({
-    headers: {
-      Authorization: `Bearer ${token}`,
-      'Content-Type': contentType
-    },
-  });
+  const getAuthHeaders = (contentType: string = 'application/json') => {
+    if (!token) {
+      console.warn('No token found in localStorage');
+      return { headers: { 'Content-Type': contentType } };
+    }
+    return {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': contentType
+      }
+    };
+  };
 
   const loadSurvey = async (id: string) => {
     try {
-      console.log('Cargando encuesta con ID:', id);
-      const response = await axios.get(
-        `${backendUrl}${id}`,
-        getAuthHeaders()
-      );
-      console.log('Datos de la encuesta:', response.data);
-      const surveyData = response.data;
+      let surveyData;
+
+      // Check if survey data is passed via router state
+      if (window.history.state && window.history.state.surveyData) {
+        console.log('Using survey data from router state:', JSON.stringify(window.history.state.surveyData, null, 2));
+        surveyData = window.history.state.surveyData;
+        // Marcar como fromTemplate si viene del estado del router
+        surveyData.isFromTemplate = true;
+      } else {
+        console.log('Fetching survey with ID:', id);
+        const response = await axios.get(`${backendUrl}${id}`, getAuthHeaders());
+        surveyData = response.data;
+        surveyData.isFromTemplate = false; // Encuestas cargadas directamente no son fromTemplate
+        console.log('Survey data received:', JSON.stringify(surveyData, null, 2));
+      }
+
+      if (!surveyData || Object.keys(surveyData).length === 0) {
+        console.error('No survey data received');
+        message.value = 'No se encontraron datos para la encuesta.';
+        return;
+      }
 
       const questionsProcessed = (surveyData.questions || []).map((q: any) => ({
         ...q,
@@ -102,18 +124,31 @@ export function useSurveyEditor(emit: Function) {
 
       Object.assign(form, {
         ...surveyData,
+        id: surveyData._id || id,
+        title: surveyData.title || '',
+        description: surveyData.description || '',
+        questions: questionsProcessed,
+        status: surveyData.status || 'created',
+        is_public: surveyData.is_public || false,
         start_date: surveyData.start_date ? formatDateForInput(surveyData.start_date) : null,
         end_date: surveyData.end_date ? formatDateForInput(surveyData.end_date) : null,
         logo_file_id: surveyData.logo_file_id || null,
         primary_color: surveyData.primary_color || null,
         secondary_color: surveyData.secondary_color || null,
         font_family: surveyData.font_family || null,
-        questions: questionsProcessed
+        isFromTemplate: surveyData.isFromTemplate || false
       });
+
       selectedVersionId.value = id;
     } catch (err: any) {
-      console.error('Error al cargar la encuesta:', err.response?.data || err.message);
-      versionsError.value = 'Error al cargar la encuesta.';
+      console.error('Error loading survey:', err.response?.data || err.message);
+      message.value = err.response?.status === 404
+        ? 'La encuesta no existe.'
+        : err.response?.status === 401
+        ? 'Sesión expirada. Por favor, inicia sesión nuevamente.'
+        : `Error al cargar la encuesta: ${err.response?.data?.detail || err.message}`;
+      versionsError.value = message.value;
+      Object.assign(form, resetForm());
     }
   };
 
@@ -121,15 +156,12 @@ export function useSurveyEditor(emit: Function) {
     if (!mainSurveyId) return;
     try {
       versionsLoading.value = true;
-      console.log('Cargando versiones para surveyId:', mainSurveyId);
-      const { data } = await axios.get(
-        `${backendUrl}${mainSurveyId}/versions`,
-        getAuthHeaders()
-      );
-      console.log('Versiones recibidas:', data);
+      console.log('Loading versions for surveyId:', mainSurveyId);
+      const { data } = await axios.get(`${backendUrl}${mainSurveyId}/versions`, getAuthHeaders());
+      console.log('Versions received:', data);
       surveyVersions.value = data;
     } catch (err: any) {
-      console.error('Error al cargar versiones:', err.response?.data || err.message);
+      console.error('Error loading versions:', err.response?.data || err.message);
       versionsError.value = 'No se pudieron cargar las versiones.';
     } finally {
       versionsLoading.value = false;
@@ -247,31 +279,24 @@ export function useSurveyEditor(emit: Function) {
     if (form.logo_file_id) {
       payload.logo_file_id = form.logo_file_id;
     }
+    delete payload.isFromTemplate; // Eliminar campo auxiliar antes de enviar
 
     try {
       let response;
-      console.log('Payload enviado:', payload);
+      console.log('Payload sent:', payload);
 
       if (isEditing.value) {
-        console.log('Enviando PUT a:', `${backendUrl}${form._id}`);
-        response = await axios.put(
-          `${backendUrl}${form._id}`,
-          payload,
-          getAuthHeaders()
-        );
+        console.log('Sending PUT to:', `${backendUrl}${form._id}`);
+        response = await axios.put(`${backendUrl}${form._id}`, payload, getAuthHeaders());
       } else {
-        console.log('Enviando POST a:', backendUrl);
-        response = await axios.post(
-          backendUrl,
-          payload,
-          getAuthHeaders()
-        );
+        console.log('Sending POST to:', backendUrl);
+        response = await axios.post(backendUrl, payload, getAuthHeaders());
       }
 
       const savedSurvey = response.data;
       message.value = isEditing.value
-        ? "Encuesta actualizada exitosamente"
-        : "Encuesta creada exitosamente";
+        ? 'Encuesta actualizada exitosamente'
+        : 'Encuesta creada exitosamente';
       success.value = true;
 
       Object.assign(form, {
@@ -289,7 +314,8 @@ export function useSurveyEditor(emit: Function) {
             options: q.options || [],
             tempId: originalQuestion?.tempId
           };
-        }) as Question[]
+        }) as Question[],
+        isFromTemplate: false // Resetear después de guardar
       });
 
       if (response.data._id) {
@@ -297,7 +323,7 @@ export function useSurveyEditor(emit: Function) {
       }
       emit('saved', savedSurvey);
     } catch (err: any) {
-      console.error("Error al guardar encuesta:", err);
+      console.error('Error saving survey:', err);
       console.log('Response data:', err.response?.data);
       message.value = err.response?.data?.detail || `Error al guardar encuesta: ${err.message}`;
       success.value = false;
@@ -306,9 +332,9 @@ export function useSurveyEditor(emit: Function) {
 
   const dateError = computed(() => {
     if (form.start_date && form.end_date && new Date(form.start_date) > new Date(form.end_date)) {
-      return "La fecha de inicio debe ser anterior a la fecha de fin.";
+      return 'La fecha de inicio debe ser anterior a la fecha de fin.';
     }
-    return "";
+    return '';
   });
 
   watch(
@@ -316,11 +342,11 @@ export function useSurveyEditor(emit: Function) {
     () => {
       const now = new Date();
       if (form.end_date && new Date(form.end_date) < now) {
-        form.status = "closed";
+        form.status = 'closed';
       } else if (form.start_date && new Date(form.start_date) <= now) {
-        form.status = "published";
+        form.status = 'published';
       } else {
-        form.status = "created";
+        form.status = 'created';
       }
     },
     { immediate: true }
@@ -351,9 +377,9 @@ export function useSurveyEditor(emit: Function) {
 
   const handleVersionChange = () => {
     if (selectedVersionId.value && selectedVersionId.value !== form._id) {
-      console.log('Versión seleccionada:', selectedVersionId.value);
+      console.log('Version selected:', selectedVersionId.value);
       router.push(`/surveys/${selectedVersionId.value}/edit`).catch(err => {
-        console.error('Error en router.push:', err);
+        console.error('Error in router.push:', err);
       });
     }
   };

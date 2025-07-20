@@ -11,7 +11,7 @@
       <nav class="main-nav" :class="{ open: mobileMenuOpen }">
         <ul>
           <li><router-link to="/public-surveys">Encuestas</router-link></li>
-          <li><router-link to="/templates">Plantillas</router-link></li>
+          <li><router-link to="/surveys/templates">Plantillas</router-link></li>
 
           <li v-if="!isAuthenticated"><router-link to="/login">Iniciar sesión</router-link></li>
 
@@ -22,8 +22,7 @@
                 <li><router-link to="/UserProfile">Mi Perfil</router-link></li>
                 <li><router-link to="/surveydashboard">Dashboard</router-link></li>
                 <li><router-link to="/mysurveys">Mis Encuestas</router-link></li>
-                <li><router-link to="/surveyeditor">Crear Encuesta</router-link></li>
-                <li><router-link to="/surveyresponse">Reportes</router-link></li>
+                <li><router-link to="/surveys/new">Crear Encuesta</router-link></li>
                 <li><a href="#" @click.prevent="handleLogout">Cerrar sesión</a></li>
               </ul>
             </div>

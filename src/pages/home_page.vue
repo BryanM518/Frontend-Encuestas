@@ -27,7 +27,7 @@
             <div class="feature-icon">🧩</div>
             <h3>Diseño de Preguntas Avanzado</h3>
             <p>Crea todo tipo de preguntas con lógica condicional, escalas de satisfacción, campos de texto, selección múltiple y carga de archivos.</p>
-            <button class="feature-btn" @click="redirectTo('/preguntas')">Crear Encuesta</button>
+            <button class="feature-btn" @click="redirectTo('/surveys/new')">Crear Encuesta</button>
           </div>
           <div class="feature-visual">
             <div class="visual-placeholder">📊</div>
@@ -41,7 +41,7 @@
             <div class="feature-icon">🎨</div>
             <h3>Personalización de Marca</h3>
             <p>Adapta tus encuestas con el logo, colores y tipografías de tu empresa para generar confianza y reconocimiento.</p>
-            <button class="feature-btn" @click="redirectTo('/personalizacion')">Personalizar Ahora</button>
+            <button class="feature-btn" @click="redirectTo('/surveys/new')">Personalizar Ahora</button>
           </div>
           <div class="feature-visual">
             <div class="visual-placeholder">🖌️</div>
@@ -55,7 +55,7 @@
             <div class="feature-icon">📚</div>
             <h3>Plantillas y Control de Versiones</h3>
             <p>Guarda encuestas como plantillas reutilizables y crea nuevas versiones manteniendo el histórico completo de datos.</p>
-            <button class="feature-btn" @click="redirectTo('/plantillas')">Explorar Plantillas</button>
+            <button class="feature-btn" @click="redirectTo('/surveys/templates')">Explorar Plantillas</button>
           </div>
           <div class="feature-visual">
             <div class="visual-placeholder">🔄</div>
@@ -69,7 +69,7 @@
             <div class="feature-icon">📈</div>
             <h3>Análisis Inteligente</h3>
             <p>Genera informes automáticos en PDF, visualiza métricas clave y compara resultados entre versiones de encuestas.</p>
-            <button class="feature-btn" @click="redirectTo('/analiticas')">Ver Análisis</button>
+            <button class="feature-btn" @click="redirectTo('/surveydashboard')">Ver Análisis</button>
           </div>
           <div class="feature-visual">
             <div class="visual-placeholder">🔍</div>
@@ -95,12 +95,9 @@ export default {
       this.currentSlide = (this.currentSlide + 1) % this.totalSlides;
     }, 5000);
   },
-  methods: {
+methods: {
     redirectTo(path) {
-      // Aquí iría la lógica de redirección, por ejemplo:
-      // this.$router.push(path);
-      alert(`Redirigiendo a: ${path}`);
-      // En una implementación real, usarías Vue Router para la navegación
+      this.$router.push(path);
     }
   }
 }

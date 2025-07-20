@@ -123,7 +123,7 @@ export function useSurveyList() {
       return;
     }
     try {
-      const response = await axios.get(`http://localhost:8000/api/survey_api/surveys/${surveyId}/report`, {
+      const response = await axios.get(`http://localhost:8000/api/survey_api/surveys/${surveyId}/final-report`, {
         headers: { Authorization: `Bearer ${token}` },
         responseType: 'blob'
       });

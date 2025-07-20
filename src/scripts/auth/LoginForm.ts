@@ -39,7 +39,7 @@ export default {
         const token = response.data.access_token;
         this.authStore.login(token);
         this.errorMessage = '';
-        this.router.push('/surveytest');
+        this.router.push('/');
       } catch (error: any) {
         this.errorMessage = error.response?.data?.detail || 'Error al iniciar sesión';
       }
