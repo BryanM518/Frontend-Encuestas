@@ -14,7 +14,7 @@
 import { defineComponent, ref, onMounted } from 'vue';
 import { useRoute } from 'vue-router';
 import axios from 'axios';
-import SurveyResponseForm from '../Surveys/SurveyResponse.vue';
+import SurveyResponseForm from '../features/surveys/SurveyResponse.vue';
 
 interface Question {
   id: string;
@@ -34,6 +34,13 @@ interface Survey {
   title: string;
   description: string;
   questions: Question[];
+  status: string;
+  start_date: string;
+  end_date: string;
+  logo_url: string;
+  primary_color: string;
+  secondary_color: string;
+  font_family: string;
 }
 
 export default defineComponent({
@@ -63,7 +70,14 @@ export default defineComponent({
           questions: data.questions.map((q: any) => ({
             ...q,
             id: q._id
-          }))
+          })),
+          status: data.status,
+          start_date: data.start_date,
+          end_date: data.end_date,
+          logo_url: data.logo_url,
+          primary_color: data.primary_color,
+          secondary_color: data.secondary_color,
+          font_family: data.font_family
         };
 
       } catch (err: any) {

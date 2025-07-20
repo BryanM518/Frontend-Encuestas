@@ -205,11 +205,11 @@ main {
 }
 
 /* Imágenes del carrusel */
-.carousel-slide.imagen1 { background-image: url('../assets/imagen1.jpg'); }
-.carousel-slide.imagen2 { background-image: url('../assets/imagen2.jpg'); }
-.carousel-slide.imagen3 { background-image: url('../assets/imagen3.jpg'); }
-.carousel-slide.imagen4 { background-image: url('../assets/imagen4.jpg'); }
-.carousel-slide.imagen5 { background-image: url('../assets/imagen5.jpg'); }
+.carousel-slide.imagen1 { background-image: url('../images/imagen1.jpg'); }
+.carousel-slide.imagen2 { background-image: url('../images/imagen2.jpg'); }
+.carousel-slide.imagen3 { background-image: url('../images/imagen3.jpg'); }
+.carousel-slide.imagen4 { background-image: url('../images/imagen4.jpg'); }
+.carousel-slide.imagen5 { background-image: url('../images/imagen5.jpg'); }
 
 .carousel-overlay {
   position: absolute;
@@ -573,7 +573,7 @@ main {
 }
 
 body {
-  background-image: url('../assets/background.png');
+  background-image: url('../images/background.png');
   background-size: cover;
   background-repeat: no-repeat;
   background-position: center;

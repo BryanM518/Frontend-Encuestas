@@ -2,7 +2,6 @@
   <div class="survey-editor">
     <h2>{{ isEditing ? 'Editar Encuesta' : 'Crear Nueva Encuesta' }}</h2>
 
-    <!-- ✅ Bloque para mostrar otras versiones de la encuesta como lista desplegable -->
     <div v-if="isEditing" class="survey-versions-block">
       <h3>📚 Versiones disponibles:</h3>
       <select
@@ -79,16 +78,22 @@
       <h3>Personalización Visual</h3>
       <div class="customization-group">
         <div class="form-group">
-          <label for="survey-logo">Logo (PNG o JPEG, máx. 2MB)</label>
-          <input
-            id="survey-logo"
-            type="file"
-            accept="image/png,image/jpeg"
-            @change="handleLogoUpload"
-          />
-          <p v-if="logoError" class="error-text">{{ logoError }}</p>
-          <img v-if="form.logo_url && !logoPreviewFailed" :src="form.logo_url" alt="Logo Preview" class="logo-preview" @error="handleLogoPreviewError" />
-        </div>
+      <label for="survey-logo">Logo (PNG o JPEG, máx. 2MB)</label>
+      <input
+        id="survey-logo"
+        type="file"
+        accept="image/png,image/jpeg"
+        @change="handleLogoUpload"
+      />
+      <p v-if="logoError" class="error-text">{{ logoError }}</p>
+      <img
+        v-if="logoPreviewUrl && !logoPreviewFailed"
+        :src="logoPreviewUrl"
+        alt="Logo Preview"
+        class="logo-preview"
+        @error="handleLogoPreviewError"
+      />
+    </div>
 
         <div class="form-group">
           <label for="primary-color">Color Primario</label>
@@ -126,7 +131,13 @@
         <div class="preview-container" :style="previewStyle">
           <h4>Vista Previa</h4>
           <div class="preview-content">
-            <img v-if="form.logo_url && !logoPreviewFailed" :src="form.logo_url" alt="Logo Preview" class="preview-logo" @error="handleLogoPreviewError" />
+            <img
+          v-if="logoPreviewUrl && !logoPreviewFailed"
+          :src="logoPreviewUrl"
+          alt="Logo Preview"
+          class="preview-logo"
+          @error="handleLogoPreviewError"
+        />
             <p :style="{ fontFamily: form.font_family || 'inherit' }">
               Ejemplo de texto con la tipografía seleccionada.
             </p>
@@ -285,132 +296,12 @@
 </template>
 
 <script lang="ts">
-import { defineComponent, ref, computed, watch, onMounted, toRefs } from 'vue';
-import { useRoute, useRouter } from 'vue-router';
-import axios from 'axios';
+import { defineComponent } from 'vue';
 import { useSurveyEditor } from '../../scripts/Surveys/SurveyEditor';
 
 export default defineComponent({
   name: 'SurveyEditor',
   setup(_, { emit }) {
-    const route = useRoute();
-    const router = useRouter();
-    const surveyId = route.params.id as string | undefined;
-
-    const surveyToEdit = ref<any>(null);
-    const logoPreviewFailed = ref(false);
-    const selectedVersionId = ref<string>(''); // Nueva ref para el select
-
-    // ✅ Refs para versiones anteriores
-    const surveyVersions = ref<Array<{ _id: string; version: number }>>([]);
-    const versionsLoading = ref(false);
-    const versionsError = ref('');
-
-    const formatDateForInput = (dateString: string | null): string => {
-      if (!dateString) return '';
-      
-      try {
-        const date = new Date(dateString);
-        // Ajustar para la zona horaria local
-        const tzOffset = date.getTimezoneOffset() * 60000; // offset en milisegundos
-        const localISOTime = new Date(date.getTime() - tzOffset).toISOString();
-        return localISOTime.slice(0, 16);
-      } catch {
-        return '';
-      }
-    };
-
-    const loadSurveyVersions = async () => {
-      if (!surveyId) return;
-      try {
-        versionsLoading.value = true;
-        const token = localStorage.getItem('token');
-        console.log('Cargando versiones para surveyId:', surveyId);
-        console.log('Token usado:', token);
-        const { data } = await axios.get(
-          `${import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000'}/api/survey_api/surveys/${surveyId}/versions`,
-          { headers: { Authorization: `Bearer ${token}` } }
-        );
-        console.log('Versiones recibidas:', data);
-        surveyVersions.value = data;
-        // Establecer la versión actual como seleccionada
-        if (surveyId && data.some((v: any) => v._id === surveyId)) {
-          selectedVersionId.value = surveyId;
-        }
-      } catch (err: any) {
-        console.error('Error al cargar versiones:', err.response?.data || err.message);
-        versionsError.value = 'No se pudieron cargar las versiones.';
-      } finally {
-        versionsLoading.value = false;
-      }
-    };
-
-    // ✅ Cargar la encuesta actual
-    onMounted(async () => {
-      if (surveyId) {
-        try {
-          console.log('Cargando encuesta con ID:', surveyId);
-          const token = localStorage.getItem('token');
-          console.log('Token usado:', token);
-          const response = await axios.get(
-            `${import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000'}/api/survey_api/surveys/${surveyId}`,
-            { headers: { Authorization: `Bearer ${token}` } }
-          );
-          console.log('Datos de la encuesta:', response.data);
-          surveyToEdit.value = response.data;
-
-          // Formatear fechas para los inputs
-          // if (surveyToEdit.value.start_date) {
-          //   surveyToEdit.value.start_date = formatDateForInput(surveyToEdit.value.start_date);
-          // }
-          // if (surveyToEdit.value.end_date) {
-          //   surveyToEdit.value.end_date = formatDateForInput(surveyToEdit.value.end_date);
-          // }
-
-          // 🔄 Cargar versiones después
-          await loadSurveyVersions();
-        } catch (err: any) {
-          console.error('Error al cargar la encuesta:', err.response?.data || err.message);
-          versionsError.value = 'Error al cargar la encuesta.';
-        }
-      }
-    });
-
-    // ✅ Watcher para cambios en route.params.id
-    watch(
-      () => route.params.id,
-      async (newId) => {
-        if (newId && newId !== surveyId) {
-          console.log('Cambio de ID detectado:', newId);
-          try {
-            const token = localStorage.getItem('token');
-            console.log('Token usado para nueva encuesta:', token);
-            const response = await axios.get(
-              `${import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000'}/api/survey_api/surveys/${newId}`,
-              { headers: { Authorization: `Bearer ${token}` } }
-            );
-            console.log('Datos de la nueva encuesta:', response.data);
-            surveyToEdit.value = response.data;
-
-            // Formatear fechas para los inputs
-            if (surveyToEdit.value.start_date) {
-              surveyToEdit.value.start_date = formatDateForInput(surveyToEdit.value.start_date);
-            }
-            if (surveyToEdit.value.end_date) {
-              surveyToEdit.value.end_date = formatDateForInput(surveyToEdit.value.end_date);
-            }
-
-            // Recargar versiones
-            await loadSurveyVersions();
-          } catch (err: any) {
-            console.error('Error al cargar nueva encuesta:', err.response?.data || err.message);
-            versionsError.value = 'Error al cargar la nueva encuesta.';
-          }
-        }
-      },
-      { immediate: true }
-    );
-
     const {
       form,
       message,
@@ -424,89 +315,23 @@ export default defineComponent({
       addLogic,
       removeLogic,
       handleLogoUpload,
-      logoError
-    } = useSurveyEditor(surveyToEdit, emit);
-
-    const dateError = computed(() => {
-      if (form.start_date && form.end_date && new Date(form.start_date) > new Date(form.end_date)) {
-        return "La fecha de inicio debe ser anterior a la fecha de fin";
-      }
-      return "";
-    });
-
-    const previewStyle = computed(() => ({
-      '--primary-color': form.primary_color || '#3498db',
-      '--secondary-color': form.secondary_color || '#2ecc71',
-      fontFamily: form.font_family || 'inherit'
-    }));
-
-    const hasTempReference = (question: any) => {
-      if (!question.visible_if) return false;
-      return question.visible_if.question_id?.startsWith('temp_');
-    };
-
-    const getPreviousQuestions = (currentIndex: number) => {
-      return form.questions.slice(0, currentIndex);
-    };
-
-    const getQuestionKey = (question: any, index: number) => {
-      return question.tempId || question._id || `question-${index}`;
-    };
-
-    const getQuestionText = (question: any, index: number) => {
-      return question.text || `Pregunta ${index + 1} (sin texto)`;
-    };
-
-    const handleLogoPreviewError = () => {
-      logoPreviewFailed.value = true;
-      form.logo_url = null;
-      logoError.value = 'No se pudo cargar la vista previa del logo.';
-    };
-
-    const handleVersionClick = (versionId: string) => {
-      console.log('Botón Ver clicado, version._id:', versionId);
-      console.log('Ruta actual:', route.path);
-      console.log('Ruta destino:', `/surveys/${versionId}/edit`);
-      router.push(`/surveys/${versionId}/edit`).catch(err => {
-        console.error('Error en router.push:', err);
-      });
-    };
-
-    const handleVersionChange = () => {
-      if (selectedVersionId.value && selectedVersionId.value !== form._id) {
-        console.log('Versión seleccionada:', selectedVersionId.value);
-        console.log('Ruta actual:', route.path);
-        console.log('Ruta destino:', `/surveys/${selectedVersionId.value}/edit`);
-        router.push(`/surveys/${selectedVersionId.value}/edit`).catch(err => {
-          console.error('Error en router.push:', err);
-        });
-      }
-    };
-
-    const wrappedHandleSubmit = async (event: Event) => {
-      console.log('Form submitted, event:', event);
-      await handleSubmit();
-    };
-
-    watch(
-      () => [form.start_date, form.end_date],
-      () => {
-        const now = new Date();
-        if (form.end_date && new Date(form.end_date) < now) {
-          form.status = "closed";
-        } else if (form.start_date && new Date(form.start_date) <= now) {
-          form.status = "published";
-        } else {
-          form.status = "created";
-        }
-      },
-      { immediate: true }
-    );
-
-    const capitalize = (str: string) => {
-      if (!str) return '';
-      return str.charAt(0).toUpperCase() + str.slice(1);
-    };
+      logoError,
+      logoPreviewFailed,
+      dateError,
+      surveyVersions,
+      versionsLoading,
+      versionsError,
+      selectedVersionId,
+      handleVersionChange,
+      capitalize,
+      previewStyle,
+      hasTempReference,
+      getPreviousQuestions,
+      getQuestionKey,
+      getQuestionText,
+      handleLogoPreviewError,
+      logoPreviewUrl
+    } = useSurveyEditor(emit);
 
     return {
       form,
@@ -517,7 +342,7 @@ export default defineComponent({
       removeQuestion,
       addOption,
       removeOption,
-      handleSubmit: wrappedHandleSubmit,
+      handleSubmit,
       addLogic,
       removeLogic,
       handleLogoUpload,
@@ -534,9 +359,9 @@ export default defineComponent({
       surveyVersions,
       versionsLoading,
       versionsError,
-      handleVersionClick,
       selectedVersionId,
-      handleVersionChange
+      handleVersionChange,
+      logoPreviewUrl
     };
   }
 });

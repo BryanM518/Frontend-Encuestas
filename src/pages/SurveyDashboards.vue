@@ -10,9 +10,9 @@
 
 <script lang="ts">
 import { defineComponent } from 'vue';
-import SurveyEditor from '../../components/Surveys/SurveyEditor.vue';
-import SurveyList from '../../components/Surveys/SurveyList.vue';
-import { useSurveyDashboard } from '../../scripts/views/SurveyDashboards';
+import SurveyEditor from '../features/surveys/SurveyEditor.vue';
+import SurveyList from '../features/surveys/SurveyList.vue';
+import { useSurveyDashboard } from '../scripts/views/SurveyDashboards';
 
 export default defineComponent({
   name: 'SurveyDashboard',

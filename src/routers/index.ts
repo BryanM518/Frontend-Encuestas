@@ -1,17 +1,38 @@
 import { createRouter, createWebHistory, RouteRecordRaw } from 'vue-router'
 
-import LoginForm from '../components/auth/LoginForm.vue'
-import RegisterForm from '../components/auth/RegisterForm.vue'
-import SurveyEditor from '../components/Surveys/SurveyEditor.vue'
-import SurveyList from '../components/Surveys/SurveyList.vue'
-import SurveyDashboards from '../components/views/SurveyDashboards.vue'
-import SurveyResponse from '../components/Surveys/SurveyResponse.vue'
-import SurveyResponseList from '../components/Surveys/SurveyResponseList.vue'
-import HomePage from '../components/home_page.vue'
-import UserProfile from '../components/views/UserProfile.vue'
-import PublicSurveyList from '../components/Surveys/PublicSurveyList.vue'
-import SurveyStats from '../components/Surveys/SurveyStats.vue'
-import SurveyAcess from '../components/views/SurveyAccess.vue'
+// import LoginForm from '../components/auth/LoginForm.vue'
+// import RegisterForm from '../components/auth/RegisterForm.vue'
+// import SurveyEditor from '../components/Surveys/SurveyEditor.vue'
+// import SurveyList from '../components/Surveys/SurveyList.vue'
+// import SurveyDashboards from '../components/views/SurveyDashboards.vue'
+// import SurveyResponse from '../components/Surveys/SurveyResponse.vue'
+// import SurveyResponseList from '../components/Surveys/SurveyResponseList.vue'
+// import HomePage from '../components/home_page.vue'
+// import UserProfile from '../components/views/UserProfile.vue'
+// import PublicSurveyList from '../components/Surveys/PublicSurveyList.vue'
+// import SurveyStats from '../components/Surveys/SurveyStats.vue'
+// import SurveyAcess from '../components/views/SurveyAccess.vue'
+
+// Views (páginas) de alto nivel
+import HomePage from '../pages/home_page.vue'
+import SurveyAccess from '../pages/SurveyAccess.vue'
+import SurveyDashboards from '../pages/SurveyDashboards.vue'
+
+// Features: Auth
+import LoginForm from '../features/auth/LoginForm.vue'
+import RegisterForm from '../features/auth/RegisterForm.vue'
+
+// Features: Surveys
+import SurveyList from '../features/surveys/SurveyList.vue'
+import SurveyEditor from '../features/surveys/SurveyEditor.vue'
+import SurveyResponse from '../features/surveys/SurveyResponse.vue'
+import SurveyResponseList from '../features/surveys/SurveyResponseList.vue'
+import PublicSurveyList from '../features/surveys/PublicSurveyList.vue'
+import SurveyStats from '../features/surveys/SurveyStats.vue'
+
+// Features: User
+import UserProfile from '../features/user/UserProfile.vue'
+import ResponderPublicSurvey from '../pages/ResponderPublicSurvey.vue'
 
 const routes: RouteRecordRaw[] = [
   {
@@ -98,11 +119,11 @@ const routes: RouteRecordRaw[] = [
 {
   path: '/survey-access/:token_id',
   name: 'SurveyAccess',
-  component: () => import('../components/views/SurveyAccess.vue')
+  component: SurveyAccess
 }, {
   path: '/response/:id',
   name: 'ResponderEncuesta',
-  component: () => import('../components/views/ResponderPublicSurvey.vue')
+  component: ResponderPublicSurvey
 }
 
 

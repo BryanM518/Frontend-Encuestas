@@ -7,7 +7,18 @@
 
     <ul v-if="surveys.length">
       <li v-for="survey in surveys" :key="survey._id" class="survey-item">
-        <strong>{{ survey.title }}</strong>
+        <div class="survey-header">
+          <strong>{{ survey.title }}</strong>
+          <div class="survey-logo">
+            <img
+              v-if="survey.logo_file_id"
+              :src="logoUrl(survey.logo_file_id)"
+              alt="Logo de la encuesta"
+              @error="handleLogoError(survey)"
+            />
+            <div v-else class="logo-placeholder">Sin logo</div>
+          </div>
+        </div>
         <p>{{ survey.description }}</p>
         <div class="survey-status">
           Estado: <span :class="['status', survey.status]">{{ capitalize(survey.status) }}</span>
@@ -37,6 +48,7 @@ interface Survey {
   status: string;
   start_date?: string;
   end_date?: string;
+  logo_file_id?: string | null;
 }
 
 export default defineComponent({
@@ -46,10 +58,19 @@ export default defineComponent({
     const loading = ref(false);
     const error = ref<string | null>(null);
     const endpoint = 'http://127.0.0.1:8000/api/survey_api/surveys/public';
+    const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000';
 
     const capitalize = (value: string) => {
       if (!value) return '';
       return value.charAt(0).toUpperCase() + value.slice(1);
+    };
+
+    const logoUrl = (fileId: string) => {
+      return `${baseUrl}/api/survey_api/surveys/files/${fileId}`;
+    };
+
+    const handleLogoError = (survey: Survey) => {
+      survey.logo_file_id = null;
     };
 
     const loadSurveys = async () => {
@@ -59,7 +80,8 @@ export default defineComponent({
         const response = await axios.get(endpoint);
         surveys.value = response.data.map((survey: any) => ({
           ...survey,
-          status: survey.status || 'created'
+          status: survey.status || 'created',
+          logo_file_id: survey.logo_file_id || null
         }));
       } catch (err) {
         console.error(err);
@@ -77,7 +99,9 @@ export default defineComponent({
       surveys,
       loading,
       error,
-      capitalize
+      capitalize,
+      logoUrl,
+      handleLogoError
     };
   }
 });
@@ -118,7 +142,7 @@ ul {
   list-style: none;
   padding: 0;
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  grid-template-columns: 1fr;
   gap: 1.5rem;
 }
 
@@ -152,11 +176,48 @@ ul {
   background: linear-gradient(to right, var(--color3), var(--color4));
 }
 
+.survey-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.survey-logo {
+  width: 60px;
+  height: 60px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.survey-logo img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  border-radius: 6px;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.survey-logo .logo-placeholder {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #f0f0f0;
+  border-radius: 6px;
+  color: #777;
+  font-size: 0.8rem;
+  font-weight: 500;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  text-align: center;
+}
+
 .survey-item strong {
   font-size: 1.3rem;
   color: var(--text-dark);
-  margin-bottom: 0.8rem;
-  display: block;
   line-height: 1.3;
 }
 
@@ -255,29 +316,14 @@ ul {
   animation: fadeIn 0.5s ease;
 }
 
-/* Responsive */
 @media (max-width: 768px) {
-  ul {
-    grid-template-columns: 1fr;
+  .survey-header {
+    flex-direction: column;
+    align-items: flex-start;
   }
-  
-  .public-survey-list {
-    padding: 1rem;
-    margin: 1rem;
-  }
-  
-  h2 {
-    font-size: 1.8rem;
-  }
-}
 
-@media (max-width: 480px) {
-  h2 {
-    font-size: 1.6rem;
-  }
-  
-  .survey-item strong {
-    font-size: 1.2rem;
+  .survey-logo {
+    margin-top: 0.5rem;
   }
 }
 </style>

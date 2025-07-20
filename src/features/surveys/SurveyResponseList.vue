@@ -26,7 +26,7 @@
           </div>
           <ul>
             <li v-for="(value, qid) in response.answers" :key="qid">
-              <strong>{{ getQuestionText(qid) }}</strong>
+              <strong>{{ getQuestionText(String(qid)) }}</strong>
               {{ value }}
             </li>
           </ul>
@@ -39,135 +39,34 @@
   </div>
 </template>
 
-<script setup>
-import { ref, onMounted } from 'vue'
-import axios from 'axios'
-import { useRoute } from 'vue-router'
+<script setup lang="ts">
+import { ref, onMounted } from 'vue';
+import { useRoute } from 'vue-router';
+import { useSurveyResponses } from '../../scripts/Surveys/SurveyResponeseList';
 
-const route = useRoute()
-const surveyId = route.params.id
+const route = useRoute();
+const surveyId = route.params.id as string;
 
-const responses = ref([])
-const error = ref(null)
-const loading = ref(false)
-const questionMap = ref({})
-const surveyTitle = ref('')
+const { 
+  responses, 
+  error, 
+  loading, 
+  questionMap, 
+  init, 
+  formatDate, 
+  descargarInforme, 
+  exportResponses 
+} = useSurveyResponses(surveyId);
 
-const fetchResponses = async () => {
-  loading.value = true
-  error.value = null
-  try {
-    const token = localStorage.getItem('token')
-    const response = await axios.get(
-      `http://127.0.0.1:8000/api/survey_api/surveys/${surveyId}/responses`,
-      {
-        headers: { Authorization: `Bearer ${token}` },
-      }
-    )
-    responses.value = response.data
-  } catch (err) {
-    console.error(err)
-    error.value = 'No se pudieron cargar las respuestas.'
-  } finally {
-    loading.value = false
-  }
-}
-
-const fetchSurveyQuestions = async () => {
-  try {
-    const token = localStorage.getItem('token')
-    const response = await axios.get(
-      `http://127.0.0.1:8000/api/survey_api/surveys/${surveyId}`,
-      {
-        headers: { Authorization: `Bearer ${token}` },
-      }
-    )
-    const map = {}
-    for (const q of response.data.questions) {
-      map[q._id] = q.text
-    }
-    questionMap.value = map
-    surveyTitle.value = response.data.title || ''
-  } catch (err) {
-    console.error('Error al obtener preguntas:', err)
-  }
-}
-
-const getQuestionText = (qid) => {
-  return questionMap.value[qid] || `Pregunta ${qid}`
-}
-
-const formatDate = (iso) => {
-  return new Date(iso).toLocaleString()
-}
-
-const descargarInforme = async () => {
-  try {
-    const token = localStorage.getItem('token')
-    const response = await axios.get(
-      `http://127.0.0.1:8000/api/survey_api/surveys/${surveyId}/final-report`,
-      {
-        headers: { Authorization: `Bearer ${token}` },
-        responseType: 'blob',
-      }
-    )
-    const blob = new Blob([response.data], { type: 'application/pdf' })
-    const url = window.URL.createObjectURL(blob)
-    const link = document.createElement('a')
-    link.href = url
-    link.setAttribute('download', `informe_encuesta_${surveyId}.pdf`)
-    document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
-    window.URL.revokeObjectURL(url)
-  } catch (err) {
-    console.error('Error al descargar el informe:', err)
-    alert('No se pudo descargar el informe.')
-  }
-}
-
-const exportResponses = async (format) => {
-  try {
-    const token = localStorage.getItem('token')
-    const response = await axios.get(
-      `http://127.0.0.1:8000/api/survey_api/surveys/${surveyId}/export`,
-      {
-        headers: { Authorization: `Bearer ${token}` },
-        params: { format },
-        responseType: 'blob',
-      }
-    )
-
-    const blob = new Blob([response.data], {
-      type:
-        format === 'csv'
-          ? 'text/csv'
-          : 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-    })
-
-    const url = window.URL.createObjectURL(blob)
-    const link = document.createElement('a')
-    link.href = url
-    const safeTitle = surveyTitle.value
-      ? surveyTitle.value.replace(/\s+/g, '_').toLowerCase()
-      : surveyId
-    link.setAttribute('download', `respuestas_${safeTitle}.${format}`)
-    document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
-    window.URL.revokeObjectURL(url)
-  } catch (err) {
-    console.error('Error al exportar respuestas:', err)
-    alert('No se pudo exportar las respuestas.')
-  }
-}
+// Obtener texto de la pregunta
+const getQuestionText = (qid: string) => {
+  return questionMap.value[qid] || `Pregunta ${qid}`;
+};
 
 onMounted(() => {
-  fetchResponses()
-  fetchSurveyQuestions()
-})
+  init();
+});
 </script>
-
 
 
 <style scoped>

@@ -2,7 +2,6 @@
   <div class="public-survey-wrapper">
     <p v-if="loading">Cargando encuesta pública...</p>
     <p v-else-if="error" class="error">{{ error }}</p>
-
     <SurveyResponseForm v-else-if="survey" :survey="survey" />
   </div>
 </template>
@@ -11,7 +10,7 @@
 import { defineComponent, ref, onMounted } from 'vue';
 import { useRoute } from 'vue-router';
 import axios from 'axios';
-import SurveyResponseForm from '../Surveys/SurveyResponse.vue';
+import SurveyResponseForm from '../features/surveys/SurveyResponse.vue';
 
 interface Question {
   id: string;
@@ -32,6 +31,13 @@ interface Survey {
   description: string;
   status: string;
   questions: Question[];
+  start_date?: string;
+  end_date?: string;
+  logo_file_id?: string | null;
+  logo_url?: string | null;
+  primary_color?: string;
+  secondary_color?: string;
+  font_family?: string;
 }
 
 export default defineComponent({
@@ -53,13 +59,13 @@ export default defineComponent({
         const { data } = await axios.get(
           `http://localhost:8000/api/survey_api/surveys/public/${surveyId}`
         );
+        console.log('Backend response for /public/{id}:', JSON.stringify(data, null, 2));
 
-        // ✅ Transformar _id a id para cumplir con la interfaz
         survey.value = {
           id: data._id,
           title: data.title,
           description: data.description,
-          status: data.status, // Agregar status para cumplir con la interfaz
+          status: data.status,
           questions: data.questions.map((q: any) => ({
             id: q._id,
             type: q.type,
@@ -67,8 +73,24 @@ export default defineComponent({
             options: q.options,
             is_required: q.is_required,
             visible_if: q.visible_if || null
-          }))
+          })),
+          start_date: data.start_date,
+          end_date: data.end_date,
+          logo_file_id: data.logo_file_id || null,
+          logo_url: data.logo_file_id
+            ? `http://localhost:8000/api/survey_api/surveys/files/${data.logo_file_id}`
+            : null,
+          primary_color: data.primary_color,
+          secondary_color: data.secondary_color,
+          font_family: data.font_family
         };
+
+        console.log('Mapped survey:', JSON.stringify(survey.value, null, 2));
+        if (survey.value.logo_file_id) {
+          console.log('Generated logo URL in ResponderPublicSurvey:', survey.value.logo_url);
+        } else {
+          console.warn('No logo_file_id in response for survey:', surveyId);
+        }
       } catch (err: any) {
         console.error('Error al cargar encuesta pública:', err);
         error.value = err.response?.data?.detail || 'No se pudo cargar la encuesta.';

@@ -2,7 +2,7 @@
   <header class="app-header">
     <div class="header-content">
       <router-link to="/" class="logo">
-        <img src="../../assets/logo.png" alt="Logo de ST&T" class="logo-img" />
+        <img src="../assets/images/logo.png" alt="Logo de ST&T" class="logo-img" />
         <span>ST&T Encuestas</span>
       </router-link>
 
@@ -36,7 +36,7 @@
 
 <script lang="ts">
 import { defineComponent } from 'vue';
-import { useMainHeader } from '../../scripts/includes/MainHeader'; // Adjust the import path as needed
+import { useMainHeader } from '../scripts/layouts/MainHeader';
 
 export default defineComponent({
   name: 'MainHeader',

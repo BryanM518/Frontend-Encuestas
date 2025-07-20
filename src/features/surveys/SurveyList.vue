@@ -11,9 +11,17 @@
     <div v-if="surveys.length" class="surveys-grid">
       <div v-for="survey in surveys" :key="survey._id" class="survey-card">
         <div class="card-header">
+          <div class="survey-logo">
+            <img
+              v-if="survey.logo_file_id"
+              :src="logoUrl(survey.logo_file_id)"
+              alt="Logo de la encuesta"
+              @error="handleLogoError(survey)"
+            />
+            <div v-else class="logo-placeholder">Sin logo</div>
+          </div>
           <div class="card-title">
             <h3>{{ survey.title }} (Versión {{ survey.version }})</h3>
-            <!-- <p>{{ survey.description }}</p> -->
           </div>
           <button class="generate-link-btn" @click="generateLink(survey._id)">
             🔗 Generar enlace
@@ -61,67 +69,27 @@
 </template>
 
 <script lang="ts">
-import { defineComponent, ref } from 'vue';
+import { defineComponent } from 'vue';
 import { useSurveyList } from '../../scripts/Surveys/SurveyList';
-import axios from 'axios';
 
 export default defineComponent({
   name: 'SurveyList',
   setup() {
-    const { surveys, loading, error, loadSurveys, deleteSurvey } = useSurveyList();
-    const showModal = ref(false);
-    const invitationLink = ref('');
-    const copyMessage = ref('');
-
-    const generateLink = async (surveyId: string) => {
-      const token = localStorage.getItem('token')!;
-      const url = `http://localhost:8000/api/survey_api/invitations/generate-access-link/${surveyId}`;
-      
-      try {
-        const { data } = await axios.post(
-          url,
-          {},
-          { headers: { Authorization: `Bearer ${token}` } }
-        );
-
-        invitationLink.value = `${window.location.origin}/survey-access/${data.token_id}`;
-        showModal.value = true;
-        copyMessage.value = '';
-      } catch (err: any) {
-        console.error('Error generando enlace:', err);
-        alert('No se pudo generar el enlace');
-      }
-    };
-
-    const copyToClipboard = async (text: string) => {
-      try {
-        await navigator.clipboard.writeText(text);
-        copyMessage.value = 'Enlace copiado al portapapeles';
-        setTimeout(() => (copyMessage.value = ''), 3000);
-      } catch {
-        copyMessage.value = 'No se pudo copiar';
-      }
-    };
-
-    const downloadReport = async (surveyId: string) => {
-      const token = localStorage.getItem('token');
-      try {
-        const response = await axios.get(`http://localhost:8000/api/survey_api/surveys/${surveyId}/report`, {
-          headers: { Authorization: `Bearer ${token}` },
-          responseType: 'blob'
-        });
-        const url = window.URL.createObjectURL(new Blob([response.data]));
-        const link = document.createElement('a');
-        link.href = url;
-        link.setAttribute('download', `informe_encuesta_${surveyId}.pdf`);
-        document.body.appendChild(link);
-        link.click();
-        link.remove();
-      } catch (err) {
-        console.error('Error al descargar el informe:', err);
-        alert('No se pudo descargar el informe');
-      }
-    };
+    const { 
+      surveys, 
+      loading, 
+      error, 
+      loadSurveys, 
+      deleteSurvey,
+      showModal,        
+      invitationLink,   
+      copyMessage,      
+      generateLink,     
+      copyToClipboard,  
+      downloadReport,
+      logoUrl,
+      handleLogoError
+    } = useSurveyList();
 
     return {
       surveys,
@@ -131,10 +99,12 @@ export default defineComponent({
       deleteSurvey,
       showModal,
       invitationLink,
+      copyMessage,
       generateLink,
       copyToClipboard,
-      copyMessage,
-      downloadReport
+      downloadReport,
+      logoUrl,
+      handleLogoError
     };
   },
 });
@@ -178,7 +148,7 @@ h2::after {
 
 .surveys-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+  grid-template-columns: 1fr;
   gap: 2rem;
 }
 
@@ -212,24 +182,53 @@ h2::after {
 
 .card-header {
   display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
+  align-items: center;
   margin-bottom: 1.5rem;
   gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.survey-logo {
+  width: 60px;
+  height: 60px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.survey-logo img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  border-radius: 6px;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.survey-logo .logo-placeholder {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #f0f0f0;
+  border-radius: 6px;
+  color: #777;
+  font-size: 0.8rem;
+  font-weight: 500;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  text-align: center;
+}
+
+.card-title {
+  flex-grow: 1;
 }
 
 .card-title h3 {
   font-size: 1.4rem;
   color: var(--text-dark);
-  margin: 0 0 0.5rem;
-  line-height: 1.3;
-}
-
-.card-title p {
-  color: #555;
   margin: 0;
-  line-height: 1.5;
-  font-size: 0.95rem;
+  line-height: 1.3;
 }
 
 .generate-link-btn {
@@ -246,7 +245,6 @@ h2::after {
   gap: 0.5rem;
   box-shadow: 0 3px 10px rgba(240, 151, 28, 0.3);
   flex-shrink: 0;
-  height: fit-content;
 }
 
 .generate-link-btn:hover {
@@ -454,36 +452,37 @@ ul > li::before {
 }
 
 @media (max-width: 768px) {
-  .surveys-grid {
-    grid-template-columns: 1fr;
-  }
-  
   .survey-list {
     padding: 1rem;
   }
-  
+
   .btn-survey-actions {
     flex-direction: column;
     align-items: flex-start;
   }
-  
+
   h2 {
     font-size: 1.8rem;
   }
-  
+
   .modal {
     padding: 1.5rem;
   }
-  
+
   .card-header {
     flex-direction: column;
+    align-items: flex-start;
   }
-  
+
+  .survey-logo {
+    margin-bottom: 0.5rem;
+  }
+
   .generate-link-btn {
     width: 100%;
     justify-content: center;
   }
-  
+
   .action-group {
     flex-direction: column;
   }
@@ -493,15 +492,15 @@ ul > li::before {
   .survey-card {
     padding: 1.2rem;
   }
-  
+
   h2 {
     font-size: 1.6rem;
   }
-  
+
   .modal-buttons {
     flex-direction: column;
   }
-  
+
   .modal-buttons button {
     width: 100%;
   }

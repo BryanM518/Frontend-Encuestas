@@ -1,5 +1,19 @@
 <template>
   <div class="survey-response-form" :style="surveyStyle">
+    <!-- Contenedor para el logo en la parte superior -->
+    <div class="logo-container">
+      <img
+        v-if="activeSurvey?.logo_file_id && !logoLoadFailed"
+        :src="logoUrl(activeSurvey.logo_file_id)"
+        alt="Survey Logo"
+        class="survey-logo"
+        @error="handleLogoError"
+      />
+      <div v-else class="logo-placeholder">Sin logo</div>
+      <p v-if="logoLoadFailed" class="error-text">No se pudo cargar el logo de la encuesta.</p>
+      <p v-if="!activeSurvey?.logo_file_id && !logoLoadFailed" class="info-text">No se ha proporcionado un logo para esta encuesta.</p>
+    </div>
+
     <div v-if="loading">Cargando encuesta...</div>
     <div v-else-if="error" class="error">{{ error }}</div>
     <div v-else-if="activeSurvey && activeSurvey.status !== 'published'" class="blocked-message">
@@ -9,13 +23,6 @@
     </div>
     <div v-else-if="activeSurvey">
       <div class="survey-header">
-        <img
-          v-if="activeSurvey.logo_url"
-          :src="activeSurvey.logo_url"
-          alt="Survey Logo"
-          class="survey-logo"
-          @error="handleLogoError"
-        />
         <h2>{{ activeSurvey.title }}</h2>
         <p>{{ activeSurvey.description }}</p>
       </div>
@@ -127,241 +134,44 @@
 </template>
 
 <script lang="ts">
-import { defineComponent, PropType, CSSProperties } from 'vue';
-import { useRoute } from 'vue-router';
-import axios from 'axios';
-
-interface Question {
-  id: string;
-  type: string;
-  text: string;
-  options?: string[];
-  is_required: boolean;
-  visible_if?: {
-    question_id: string;
-    operator: string;
-    value: any;
-  } | null;
-}
-
-interface Survey {
-  id: string;
-  title: string;
-  description: string;
-  questions: Question[];
-  status: string;
-  start_date?: string;
-  end_date?: string;
-  logo_url?: string;
-  primary_color?: string;
-  secondary_color?: string;
-  font_family?: string;
-}
+import { defineComponent, onMounted } from 'vue';
+import { useSurveyResponse, Survey } from '../../scripts/Surveys/SurveyResponse';
 
 export default defineComponent({
   name: 'SurveyResponseForm',
   props: {
     survey: {
-      type: Object as PropType<Survey>,
+      type: Object as () => Survey,
       required: false
     }
   },
-  data() {
-    return {
-      localSurvey: null as Survey | null,
-      answers: {} as Record<string, any>,
-      responderEmail: '',
-      message: '',
-      success: false,
-      loading: true,
-      error: null as string | null,
-      logoLoadFailed: false
+  setup(props) {
+    const response = useSurveyResponse(props.survey);
+    const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000';
+
+    const logoUrl = (fileId: string) => {
+      const url = `${baseUrl}/api/survey_api/surveys/files/${fileId}`;
+      console.log('Generated logo URL:', url); // Depuración: Imprimir URL generada
+      return url;
     };
-  },
-  computed: {
-    activeSurvey(): Survey | null {
-      return this.survey || this.localSurvey;
-    },
-    visibleQuestions(): Question[] {
-      return this.activeSurvey?.questions.filter(q => this.isQuestionVisible(q)) || [];
-    },
-    surveyStyle(): CSSProperties {
-      return {
-        '--primary-color': this.activeSurvey?.primary_color || '#3498db',
-        '--secondary-color': this.activeSurvey?.secondary_color || '#2ecc71',
-        fontFamily: this.activeSurvey?.font_family || 'inherit'
-      } as CSSProperties;
-    }
-  },
-  methods: {
-    async fetchSurvey() {
-      this.loading = true;
-      this.error = null;
-      this.logoLoadFailed = false;
-      const route = useRoute();
-      const surveyId = route.params.id as string;
 
-      try {
-        const { data } = await axios.get(
-          `http://localhost:8000/api/survey_api/surveys/public/${surveyId}`
-        );
-
-        this.localSurvey = {
-          id: data._id,
-          title: data.title,
-          description: data.description,
-          status: data.status || 'created',
-          start_date: data.start_date,
-          end_date: data.end_date,
-          logo_url: data.logo_url,
-          primary_color: data.primary_color,
-          secondary_color: data.secondary_color,
-          font_family: data.font_family,
-          questions: data.questions?.map((q: any) => ({
-            ...q,
-            id: q._id,
-          })) || []
-        };
-
-        if (this.localSurvey.status === 'published') {
-          this.initAnswers();
-        } else {
-          this.error = this.localSurvey.status === 'created'
-            ? `Esta encuesta no está disponible aún. Abre el ${this.formatDate(this.localSurvey.start_date)}.`
-            : `Esta encuesta ha finalizado. Cerró el ${this.formatDate(this.localSurvey.end_date)}.`;
-        }
-      } catch (err: any) {
-        console.error('Error al cargar la encuesta pública:', err);
-        this.error = err.response?.data?.detail || 'No se pudo cargar la encuesta.';
-      } finally {
-        this.loading = false;
-      }
-    },
-
-    initAnswers() {
-      const survey = this.activeSurvey;
-      if (survey && survey.questions) {
-        for (const q of survey.questions) {
-          this.answers[q.id] = q.type === 'checkbox_group' ? [] : '';
-        }
-      }
-    },
-
-    formatDate(date?: string): string {
-      if (!date) return 'desconocido';
-      return new Date(date).toLocaleString('es-ES', {
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit'
-      });
-    },
-
-    isChecked(qid: string, opt: string) {
-      return this.answers[qid]?.includes(opt);
-    },
-
-    handleCheckboxChange(qid: string, opt: string) {
-      const current = this.answers[qid] || [];
-      if (!current.includes(opt)) {
-        this.answers[qid] = [...current, opt];
+    onMounted(() => {
+      if (!props.survey) {
+        response.fetchSurvey();
       } else {
-        this.answers[qid] = current.filter((o: string) => o !== opt);
+        response.initAnswers();
+        response.loading.value = false;
       }
-    },
+      // Depuración: Imprimir activeSurvey completo
+      console.log('activeSurvey full:', JSON.stringify(response.activeSurvey.value, null, 2));
+      console.log('logo_file_id:', response.activeSurvey.value?.logo_file_id);
+      console.log('logoLoadFailed:', response.logoLoadFailed.value);
+    });
 
-    hasCondition(q: Question): boolean {
-      return !!q.visible_if;
-    },
-
-    isQuestionVisible(q: Question): boolean {
-      const cond = q.visible_if;
-      if (!cond || !cond.question_id) return true;
-
-      const answer = this.answers[cond.question_id];
-      const operator = cond.operator || 'equals';
-      const expected = cond.value;
-
-      const toArray = (val: any): string[] => {
-        if (Array.isArray(val)) return val.map(String);
-        if (val === null || val === undefined) return [];
-        return [String(val)];
-      };
-
-      const answerArray = toArray(answer);
-      const expectedArray = toArray(expected);
-
-      switch (operator) {
-        case 'equals': return answerArray.join(',') === expectedArray.join(',');
-        case 'not_equals': return answerArray.join(',') !== expectedArray.join(',');
-        case 'in': return answerArray.some(a => expectedArray.includes(a));
-        case 'not_in': return !answerArray.some(a => expectedArray.includes(a));
-        default: return true;
-      }
-    },
-
-    handleLogoError() {
-      this.logoLoadFailed = true;
-      this.message = 'No se pudo cargar el logo. El formulario sigue disponible.';
-    },
-
-    async submitResponses() {
-      const surveyId = this.activeSurvey?.id;
-      if (!surveyId) {
-        this.message = 'Encuesta no cargada.';
-        return;
-      }
-
-      if (!this.responderEmail) {
-        this.message = 'El correo electrónico es obligatorio.';
-        return;
-      }
-
-      for (const q of this.visibleQuestions) {
-        if (q.is_required && !this.answers[q.id]) {
-          this.message = `La pregunta "${q.text}" es obligatoria.`;
-          return;
-        }
-      }
-
-      try {
-        const payload = {
-          responder_email: this.responderEmail,
-          ...Object.fromEntries(
-            Object.entries(this.answers).filter(([key]) =>
-              this.visibleQuestions.some(q => q.id === key)
-            )
-          )
-        };
-
-        await axios.post(
-          `http://localhost:8000/api/survey_api/surveys/${surveyId}/responses`,
-          payload
-        );
-
-        this.message = '¡Respuestas enviadas correctamente!';
-        this.success = true;
-
-        setTimeout(() => {
-          this.answers = {};
-          this.responderEmail = '';
-          this.success = false;
-          this.message = '';
-        }, 3000);
-      } catch (err: any) {
-        console.error('Error al enviar respuestas:', err);
-        this.message = err.response?.data?.detail || 'No se pudieron enviar las respuestas.';
-      }
-    }
-  },
-  mounted() {
-    if (!this.survey) {
-      this.fetchSurvey();
-    } else {
-      this.loading = false;
-      this.initAnswers();
-    }
+    return {
+      ...response,
+      logoUrl
+    };
   }
 });
 </script>
@@ -377,19 +187,56 @@ export default defineComponent({
   font-family: var(--font-family, 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif);
 }
 
+.logo-container {
+  margin: 0 auto 2rem;
+  text-align: center;
+}
+
+.survey-logo {
+  max-width: 300px;
+  max-height: 150px;
+  border-radius: 8px;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.1);
+  display: block;
+  margin: 0 auto;
+}
+
+.logo-placeholder {
+  width: 300px;
+  height: 150px;
+  background-color: #f0f0f0;
+  border-radius: 8px;
+  border: 1px solid #ddd;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #777;
+  font-size: 1rem;
+  font-weight: 500;
+  margin: 0 auto;
+}
+
+.error-text {
+  color: var(--color4);
+  font-size: 0.95rem;
+  margin-top: 0.5rem;
+  font-weight: 500;
+  text-align: center;
+}
+
+.info-text {
+  color: #555;
+  font-size: 0.95rem;
+  margin-top: 0.5rem;
+  font-weight: 500;
+  text-align: center;
+}
+
 .survey-header {
   margin-bottom: 2.5rem;
   text-align: center;
   padding-bottom: 1.5rem;
   border-bottom: 2px solid var(--bg-light);
-}
-
-.survey-logo {
-  max-width: 180px;
-  max-height: 100px;
-  margin-bottom: 1.5rem;
-  border-radius: 8px;
-  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.1);
 }
 
 .survey-header h2 {
@@ -623,6 +470,16 @@ export default defineComponent({
     margin: 1rem;
   }
   
+  .logo-container {
+    margin-bottom: 1.5rem;
+  }
+  
+  .survey-logo,
+  .logo-placeholder {
+    max-width: 200px;
+    max-height: 100px;
+  }
+  
   .options-group {
     grid-template-columns: 1fr;
   }
@@ -635,6 +492,12 @@ export default defineComponent({
 @media (max-width: 480px) {
   .form-group {
     padding: 1.2rem;
+  }
+  
+  .survey-logo,
+  .logo-placeholder {
+    max-width: 150px;
+    max-height: 75px;
   }
   
   .question-header {

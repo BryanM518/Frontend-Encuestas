@@ -122,173 +122,30 @@
   </div>
 </template>
 
-<script lang="ts">
-import { defineComponent, onMounted, ref, computed } from 'vue';
+<script setup lang="ts">
 import { useRoute } from 'vue-router';
-import axios from 'axios';
-import ChartBar from '../charts/ChartBar.vue';
-import ChartPie from '../charts/ChartPie.vue';
+import { useSurveyStats } from '../../scripts/Surveys/SurveyStats';
+import ChartBar from './charts/ChartBar.vue';
+import ChartPie from './charts/ChartPie.vue';
 
-export default defineComponent({
-  name: 'SurveyStats',
-  components: { ChartBar, ChartPie },
-  setup() {
-    const stats = ref<Record<string, any>>({});
-    const survey = ref<Record<string, any>>({});
-    const loading = ref(true);
-    const error = ref<string | null>(null);
-    const token = localStorage.getItem('token');
-    const chartTypes = ref<Record<string, string>>({}); // Almacena el tipo de gráfico por qid
+const route = useRoute();
+const surveyId = route.params.id as string;
 
-    const route = useRoute();
-    const surveyId = route.params.id as string;
-
-    const activeFilters = ref<{ qid: string; type: string; operator: string; value: any }[]>([]);
-
-    const availableFilters = computed(() => (filterIndex: number) => {
-      const selectedQids = activeFilters.value
-        .filter((_, index) => index !== filterIndex)
-        .map(f => f.qid)
-        .filter(qid => qid);
-
-      return Object.entries(stats.value)
-        .filter(([_, q]) => ['number_input', 'multiple_choice', 'checkbox_group'].includes(q.type))
-        .map(([id, q]) => ({
-          id,
-          text: q.text,
-          type: q.type,
-          disabled: selectedQids.includes(id),
-        }));
-    });
-
-    const getQuestionOptions = (qid: string) => {
-      console.log('getQuestionOptions: qid=', qid, 'survey=', survey.value);
-      const question = survey.value.questions?.find((q: any) => q._id === qid);
-      const options = question?.options || [];
-      console.log('Question found:', question, 'Options:', options);
-      return options;
-    };
-
-    const getMostVotedOption = (options: Record<string, number>) => {
-      if (!options || !Object.keys(options).length) return null;
-      const entries = Object.entries(options);
-      const maxEntry = entries.reduce((max, entry) => (entry[1] > max[1] ? entry : max), entries[0]);
-      return maxEntry[0];
-    };
-
-    const getMostVotedIndex = (options: Record<string, number>) => {
-      if (!options || !Object.keys(options).length) return -1;
-      const entries = Object.entries(options);
-      const maxEntry = entries.reduce((max, entry) => (entry[1] > max[1] ? entry : max), entries[0]);
-      return entries.findIndex(entry => entry[0] === maxEntry[0]);
-    };
-
-    const updateFilterType = (index: number) => {
-      const filter = activeFilters.value[index];
-      console.log('updateFilterType: filter.qid=', filter.qid, 'stats=', stats.value);
-      const question = stats.value[filter.qid];
-      if (question) {
-        filter.type = question.type || 'number_input';
-        filter.operator = filter.type === 'number_input' ? 'equals' : 'equals';
-        filter.value = filter.type === 'number_input' ? null : '';
-      } else {
-        console.warn('Pregunta no encontrada para qid:', filter.qid);
-        filter.type = 'number_input';
-        filter.operator = 'equals';
-        filter.value = null;
-      }
-    };
-
-    const fetchSurvey = async () => {
-      if (!token || !surveyId) return;
-      try {
-        const res = await axios.get(`http://localhost:8000/api/survey_api/surveys/${surveyId}`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        survey.value = res.data;
-        console.log('Survey loaded:', survey.value);
-      } catch (err: any) {
-        console.error(err);
-        error.value = err.response?.data?.detail || 'Error al cargar la encuesta';
-      }
-    };
-
-    const fetchStats = async () => {
-      if (!token || !surveyId) return;
-      loading.value = true;
-      error.value = null;
-
-      try {
-        const filterPayload = activeFilters.value.filter(f => f.qid && f.value !== null && f.value !== '' && f.operator);
-
-        if (filterPayload.some(f => f.type === 'number_input' && isNaN(f.value))) {
-          throw new Error('Todos los valores para preguntas numéricas deben ser numéricos');
-        }
-
-        const queryParams = filterPayload
-          .map((f, index) => `filter_qid_${index}=${f.qid}&filter_value_${index}=${encodeURIComponent(f.value)}&filter_operator_${index}=${f.operator}&filter_type_${index}=${f.type}`)
-          .join('&');
-
-        const url = `http://localhost:8000/api/survey_api/surveys/${surveyId}/stats${queryParams ? '?' + queryParams : ''}`;
-
-        const res = await axios.get(url, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-
-        stats.value = res.data;
-        // Inicializar chartTypes para nuevas preguntas
-        Object.keys(res.data).forEach(qid => {
-          if (!(qid in chartTypes.value)) {
-            chartTypes.value[qid] = 'pie'; // Por defecto, gráfico circular
-          }
-        });
-      } catch (err: any) {
-        console.error(err);
-        error.value = err.message || err.response?.data?.detail || 'Error al cargar estadísticas';
-      } finally {
-        loading.value = false;
-      }
-    };
-
-    const addFilter = () => {
-      const selectedQids = activeFilters.value.map(f => f.qid).filter(qid => qid);
-      const available = Object.values(stats.value)
-        .filter(q => ['number_input', 'multiple_choice', 'checkbox_group'].includes(q.type))
-        .some(q => !selectedQids.includes(q._id));
-      if (available) {
-        activeFilters.value.push({ qid: '', type: 'number_input', operator: 'equals', value: null });
-      } else {
-        alert('No hay más preguntas disponibles para filtrar');
-      }
-    };
-
-    const removeFilter = (index: number) => {
-      activeFilters.value.splice(index, 1);
-    };
-
-    onMounted(async () => {
-      await fetchSurvey();
-      await fetchStats();
-    });
-
-    return {
-      stats,
-      survey,
-      loading,
-      error,
-      chartTypes,
-      availableFilters,
-      getQuestionOptions,
-      getMostVotedOption,
-      getMostVotedIndex,
-      activeFilters,
-      addFilter,
-      removeFilter,
-      updateFilterType,
-      fetchStats,
-    };
-  },
-});
+const {
+  stats,
+  loading,
+  error,
+  chartTypes,
+  activeFilters,
+  availableFilters,
+  getQuestionOptions,
+  getMostVotedOption,
+  getMostVotedIndex,
+  updateFilterType,
+  fetchStats,
+  addFilter,
+  removeFilter
+} = useSurveyStats(surveyId);
 </script>
 
 <style scoped>
