@@ -1,5 +1,23 @@
-# Vue 3 + TypeScript + Vite
+# PROYECTO DE ENCUESTAS
 
-This template should help get you started developing with Vue 3 and TypeScript in Vite. The template uses Vue 3 `<script setup>` SFCs, check out the [script setup docs](https://v3.vuejs.org/api/sfc-script-setup.html#sfc-script-setup) to learn more.
+## Requisitos
 
-Learn more about the recommended Project Setup and IDE Support in the [Vue Docs TypeScript Guide](https://vuejs.org/guide/typescript/overview.html#project-setup).
+- Node.js 18.x o superior instalado.
+- `pnpm` (instalable via `npm install -g pnpm`).
+- Terminal o línea de comandos.
+
+## ⚙️ Configuración del entorno
+
+Sigue estos pasos para configurar el proyecto:
+
+### 1. Clonar el repositorio
+```bash
+git clone https://github.com/BryanM518/Frontend-Encuestas.git
+cd /Frontend-Encuestas
+```
+
+### 2. Instalar dependencias
+Ejecuta el siguiente comando en la raíz del proyecto:
+```bash
+pnpm install
+```
